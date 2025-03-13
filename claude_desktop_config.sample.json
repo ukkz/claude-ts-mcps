@@ -1,0 +1,36 @@
+{
+    "mcpServers": {
+        "brave-search": {
+            "command": "/path/to/bun",
+            "args": [
+                "run",
+                "/path/to/claude-ts-mcps/src/brave-search.ts"
+            ],
+            "env": {
+                "BRAVE_API_KEY": "YOUR_BRAVE_API_KEY"
+            }
+        },
+        "filesystem": {
+            "command": "/path/to/bun",
+            "args": [
+                "run",
+                "/path/to/claude-ts-mcps/src/filesystem.ts",
+                "/path/to/allowed/directory"
+            ]
+        },
+        "git": {
+            "command": "/path/to/bun",
+            "args": [
+                "run",
+                "/path/to/claude-ts-mcps/src/git.ts"
+            ]
+        },
+        "shell": {
+            "command": "/path/to/bun",
+            "args": [
+                "run",
+                "/path/to/claude-ts-mcps/src/shell.ts"
+            ]
+        }
+    }
+}
