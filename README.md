@@ -2,6 +2,8 @@
 
 A collection of Model Context Protocol (MCP) servers aimed at software developers who use LLMs for development assistance. While many developers prefer Cline for its direct VSCode integration, it uses a pay-per-use API that becomes costly with heavy usage. This project leverages the flat-rate Claude Pro subscription by connecting Claude Desktop application with custom MCP servers, providing comparable development assistance capabilities without the variable costs.
 
+日本語による解説記事: [Cline任せでコード書いてたらAPIクレジットが爆散したのでClaude Desktop + MCPをいい感じにしてサブスクだけで無双する](https://zenn.dev/ukkz/articles/c8726063edd2cd)
+
 ## Overview
 
 This project implements several MCP servers that can be used with Claude Desktop to enhance its capabilities for software development:
