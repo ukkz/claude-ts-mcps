@@ -11,6 +11,7 @@ This project implements several MCP servers that can be used with Claude Desktop
 - **Brave Search**: Provides web search and local search functionality using the Brave Search API
 - **Filesystem**: Enables file system operations with security restrictions
 - **Git**: Provides Git functionality for managing repositories
+- **GitHub**: Enables interaction with GitHub repositories, issues, pull requests, and more
 - **Shell**: Allows execution of shell commands in a controlled environment
 - **Puppeteer**: Enables browser automation and web interaction through Puppeteer
 - **Fetch**: Retrieves content from URLs and converts HTML to Markdown for improved readability
@@ -66,6 +67,18 @@ To use these MCP servers with Claude Desktop, you need to create a configuration
                 "/Users/username/Documents/claude-ts-mcps/src/git.ts"
             ]
         },
+        "github": {
+            "command": "/Users/username/.bun/bin/bun",
+            "args": [
+                "run",
+                "/Users/username/Documents/claude-ts-mcps/src/github.ts"
+            ],
+            "env": {
+                "GITHUB_PERSONAL_ACCESS_TOKEN": "YOUR_DEFAULT_TOKEN",
+                "GITHUB_TOKEN_WORK": "YOUR_WORK_ACCOUNT_TOKEN",
+                "GITHUB_TOKEN_PERSONAL": "YOUR_PERSONAL_ACCOUNT_TOKEN"
+            }
+        },
         "shell": {
             "command": "/Users/username/.bun/bin/bun",
             "args": [
@@ -97,6 +110,45 @@ To use these MCP servers with Claude Desktop, you need to create a configuration
 
 Save this configuration as `claude_desktop_config.json` and configure Claude Desktop to use it.
 
+### Multiple GitHub Account Support
+
+The GitHub MCP server supports switching between multiple GitHub accounts. You can set up multiple account profiles by configuring environment variables:
+
+```json
+"env": {
+    "GITHUB_PERSONAL_ACCESS_TOKEN": "YOUR_DEFAULT_TOKEN",  // Default account (backward compatible)
+    "GITHUB_TOKEN_WORK": "YOUR_WORK_ACCOUNT_TOKEN",       // Work account profile
+    "GITHUB_TOKEN_PERSONAL": "YOUR_PERSONAL_ACCOUNT_TOKEN" // Personal account profile
+}
+```
+
+To use a specific account profile in your requests, add the `account_profile` parameter to any GitHub API call:
+
+```json
+{
+    "owner": "username",
+    "repo": "repo-name",
+    "path": "path/to/file.txt",
+    "account_profile": "work"  // Will use the GITHUB_TOKEN_WORK environment variable
+}
+```
+
+If no `account_profile` is specified, the default `GITHUB_PERSONAL_ACCESS_TOKEN` will be used.
+
+### Fetch Server Configuration
+
+The Fetch MCP server provides customization options through environment variables:
+
+```json
+"env": {
+    "CUSTOM_USER_AGENT": "YOUR_CUSTOM_USER_AGENT", // Optional: Specify a custom User-Agent header
+    "IGNORE_ROBOTS_TXT": "false"                   // Optional: Set to "true" to bypass robots.txt rules
+}
+```
+
+- `CUSTOM_USER_AGENT`: Allows you to define a specific User-Agent string for HTTP requests, which can be useful when certain websites restrict access based on the client identification.
+- `IGNORE_ROBOTS_TXT`: By default (false), the fetch server respects robots.txt rules that websites set to control web crawlers. Setting this to "true" disables this restriction, but should be used responsibly.
+
 ## Usage
 
 1. Start Claude Desktop
@@ -110,9 +162,15 @@ Each MCP server is implemented as a standalone TypeScript file in the `src` dire
 - `src/brave-search.ts`: Brave Search API integration
 - `src/filesystem.ts`: File system operations
 - `src/git.ts`: Git operations
+- `src/github.ts`: GitHub API integration for repository management, issues, PRs, etc.
 - `src/shell.ts`: Shell command execution
 - `src/puppeteer.ts`: Browser automation and web interaction
 - `src/fetch.ts`: URL content retrieval and HTML-to-Markdown conversion
+
+The GitHub MCP server has a modular structure:
+- `src/github/common/`: Common utilities, interfaces, and types
+- `src/github/operations/`: Implementation of various GitHub API operations
+- `src/github/tools/`: Tool definitions for the MCP server
 
 To add new functionality:
 
@@ -127,6 +185,7 @@ To add new functionality:
 - Be cautious when configuring allowed directories for filesystem access
 - Use the command allowlist for the shell server to restrict executable commands
 - The fetch server respects robots.txt directives by default to prevent scraping restricted sites
+- Store your GitHub personal access tokens securely and use appropriate token permissions
 
 ## References
 
