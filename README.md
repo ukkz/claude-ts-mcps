@@ -13,6 +13,7 @@ This project implements several MCP servers that can be used with Claude Desktop
 - **Git**: Provides Git functionality for managing repositories
 - **Shell**: Allows execution of shell commands in a controlled environment
 - **Puppeteer**: Enables browser automation and web interaction through Puppeteer
+- **Fetch**: Retrieves content from URLs and converts HTML to Markdown for improved readability
 
 ## Requirements
 
@@ -78,6 +79,17 @@ To use these MCP servers with Claude Desktop, you need to create a configuration
                 "run",
                 "/Users/username/Documents/claude-ts-mcps/src/puppeteer.ts"
             ]
+        },
+        "fetch": {
+            "command": "/Users/username/.bun/bin/bun",
+            "args": [
+                "run",
+                "/Users/username/Documents/claude-ts-mcps/src/fetch.ts"
+            ],
+            "env": {
+                "CUSTOM_USER_AGENT": "YOUR_CUSTOM_USER_AGENT", // Optional
+                "IGNORE_ROBOTS_TXT": "false"                   // Optional, set to true to ignore robots.txt
+            }
         }
     }
 }
@@ -100,6 +112,7 @@ Each MCP server is implemented as a standalone TypeScript file in the `src` dire
 - `src/git.ts`: Git operations
 - `src/shell.ts`: Shell command execution
 - `src/puppeteer.ts`: Browser automation and web interaction
+- `src/fetch.ts`: URL content retrieval and HTML-to-Markdown conversion
 
 To add new functionality:
 
@@ -113,6 +126,7 @@ To add new functionality:
 - Always validate user input before executing commands
 - Be cautious when configuring allowed directories for filesystem access
 - Use the command allowlist for the shell server to restrict executable commands
+- The fetch server respects robots.txt directives by default to prevent scraping restricted sites
 
 ## References
 
