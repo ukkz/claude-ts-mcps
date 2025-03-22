@@ -12,10 +12,11 @@ This project implements several MCP servers that can be used with Claude Desktop
 - **Filesystem**: Enables file system operations with security restrictions
 - **Git**: Provides Git functionality for managing repositories
 - **Shell**: Allows execution of shell commands in a controlled environment
+- **Puppeteer**: Enables browser automation and web interaction through Puppeteer
 
 ## Requirements
 
-- [Node.js](https://nodejs.org/) (v16+)
+- [Node.js](https://nodejs.org/) (v18+)
 - [Bun](https://bun.sh/) as the JavaScript/TypeScript runtime
 - [Claude Desktop](https://anthropic.com/claude) application
 
@@ -31,61 +32,6 @@ This project implements several MCP servers that can be used with Claude Desktop
    ```
    bun install
    ```
-
-## MCP Servers
-
-### Brave Search MCP Server
-
-Provides search functionality using the Brave Search API:
-
-- **Web Search**: Retrieve information from the web
-- **Local Search**: Find information about local businesses, services, and attractions
-
-#### Requirements:
-- Brave API Key (set as environment variable `BRAVE_API_KEY`)
-
-### Filesystem MCP Server
-
-Provides secure file system operations:
-
-- Read files and directories
-- Write and edit files
-- Create directories
-- Move/rename files
-- Search for files
-- Get file information
-
-#### Features:
-- Path validation to prevent unauthorized access
-- Security checks for symlinks
-- Support for editing files with line-based changes
-
-### Git MCP Server
-
-Provides Git operations:
-
-- View repository status
-- Show differences (unstaged, staged, between branches)
-- Commit changes
-- Add files to staging
-- Reset staged changes
-- View commit logs
-- Create and checkout branches
-- Initialize repositories
-
-### Shell MCP Server
-
-Enables execution of shell commands:
-
-- Run development commands (npm, yarn, git, etc.)
-- Support for common file system operations
-- Controlled environment with security restrictions
-- Configurable timeout and working directory
-
-#### Features:
-- Command allowlist to restrict executable commands
-- Loads user's shell environment variables
-- Path validation for working directories
 
 ## Configuration
 
@@ -125,6 +71,13 @@ To use these MCP servers with Claude Desktop, you need to create a configuration
                 "run",
                 "/Users/username/Documents/claude-ts-mcps/src/shell.ts"
             ]
+        },
+        "puppeteer": {
+            "command": "/Users/username/.bun/bin/bun",
+            "args": [
+                "run",
+                "/Users/username/Documents/claude-ts-mcps/src/puppeteer.ts"
+            ]
         }
     }
 }
@@ -146,6 +99,7 @@ Each MCP server is implemented as a standalone TypeScript file in the `src` dire
 - `src/filesystem.ts`: File system operations
 - `src/git.ts`: Git operations
 - `src/shell.ts`: Shell command execution
+- `src/puppeteer.ts`: Browser automation and web interaction
 
 To add new functionality:
 
