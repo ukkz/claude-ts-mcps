@@ -1,0 +1,43 @@
+{
+  "id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+  "model": "sonar",
+  "created": 0,
+  "usage": {
+    "prompt_tokens": 30,
+    "completion_tokens": 172,
+    "total_tokens": 202,
+    "search_context_size": "medium"
+  },
+  "citations": [
+    "https://prebell.so-net.ne.jp/feature/pre_25013002.html",
+    "https://www.nvv.genai.co.jp/%E3%80%90deepseek%E3%80%91%E4%BD%8E%E3%82%B3%E3%82%B9%E3%83%88%E3%83%BB%E9%AB%98%E6%80%A7%E8%83%BDai%E3%83%A2%E3%83%87%E3%83%AB%E3%81%A7%E4%B8%96%E7%95%8C%E3%82%92%E9%A9%9A%E3%81%8B%E3%81%9B%E3%82%8B/",
+    "https://dc-okinawa.com/ailands/deepseek/",
+    "https://zenn.dev/student_blog/articles/eb008f2fc694e7",
+    "https://apidog.com/jp/blog/deepseek-r1-review-api-jp/",
+    "https://jbpress.ismedia.jp/articles/-/86381",
+    "https://blog.voice.dolphin-ai.jp/archives/535",
+    "https://jbpress.ismedia.jp/articles/-/86340",
+    "https://qiita.com/ryosuke_ohori/items/f5852495947219ccef84",
+    "https://toyokeizai.net/articles/-/861309?display=b",
+    "https://stella-international.co.jp/media/deepseek-ai-innovation/",
+    "https://www.youtube.com/watch?v=hx4zWGQizDw",
+    "https://uck-inc.jp/uck-blog/it_tech/7176/",
+    "https://newsdig.tbs.co.jp/articles/-/1701658?page=2",
+    "https://zenn.dev/ap_com/articles/deepseek-ai-revolution"
+  ],
+  "object": "chat.completion",
+  "choices": [
+    {
+      "index": 0,
+      "finish_reason": "stop",
+      "message": {
+        "role": "assistant",
+        "content": "DeepSeekは、以下の理由で革新的とされています。\n\n1. **低コストでの高性能AI開発**: DeepSeekは、約8億円という低コストで高性能なAIモデルを開発し、従来のAI開発の常識を覆しています[2][6]。\n\n2. **オープンソース化と柔軟性**: モデルはオープンソースとして提供されており、個人や企業が手軽に利用できる点が注目されています[1][2]。\n\n3. **技術革新**: 混合エキスパートアーキテクチャ（MoE）や強化学習を活用し、効率的なリソース利用と高度な推論能力を実現しています[1][7][15]。"
+      },
+      "delta": {
+        "role": "assistant",
+        "content": ""
+      }
+    }
+  ]
+}

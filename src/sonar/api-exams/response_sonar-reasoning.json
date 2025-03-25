@@ -1,0 +1,43 @@
+{
+  "id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+  "model": "sonar-reasoning",
+  "created": 0,
+  "usage": {
+    "prompt_tokens": 30,
+    "completion_tokens": 835,
+    "total_tokens": 865,
+    "search_context_size": "medium"
+  },
+  "citations": [
+    "https://prebell.so-net.ne.jp/feature/pre_25013002.html",
+    "https://roboin.io/article/2025/01/28/all-about-deepseek/",
+    "https://jbpress.ismedia.jp/articles/-/86381",
+    "https://dc-okinawa.com/ailands/deepseek/",
+    "https://pdf.wondershare.jp/info/what-is-deepseek.html",
+    "https://jbpress.ismedia.jp/articles/-/86340",
+    "https://apidog.com/jp/blog/deepseek-r1-review-api-jp/",
+    "https://note.com/komzweb/n/n3852b66eddd0",
+    "https://toyokeizai.net/articles/-/861309?display=b",
+    "https://blog.voice.dolphin-ai.jp/archives/535",
+    "https://www.itmedia.co.jp/aiplus/articles/2501/28/news091.html",
+    "https://www.youtube.com/watch?v=hx4zWGQizDw",
+    "https://qiita.com/ryosuke_ohori/items/f5852495947219ccef84",
+    "https://www.gizmodo.jp/2025/01/deepseeks-approach.html",
+    "https://makio-0559.jugem.jp"
+  ],
+  "object": "chat.completion",
+  "choices": [
+    {
+      "index": 0,
+      "finish_reason": "stop",
+      "message": {
+        "role": "assistant",
+        "content": "<think>\nOkay, I need to figure out why DeepSeek is considered innovative. Let me go through the search results provided.\n\nFirst, from result [1], DeepSeek uses Mixture-of-Experts (MoE) systems, which reduce computational load while maintaining high accuracy. That's a technical innovation. Also, they focus on cost-effectiveness and open-source models, making AI accessible.\n\nResult [2] mentions that DeepSeek-R1 matches OpenAI's o1 in performance but is free and open-source. That's a big deal because others like ChatGPT require paid subscriptions. Their approach to inference with reasoning steps before outputting answers is another point.\n\nLooking at [3], DeepSeek developed their models at a fraction of the cost (around $5.8 million vs. ChatGPT's over $100 million) and in a shorter time. They used fewer GPUs, which is significant given export restrictions. This efficiency is innovative.\n\nResult [4] highlights their models like R1 and V3, which excel in reasoning and coding. The use of reinforcement learning without human feedback (from [14]) is a key innovation. They also solved issues like mixed language outputs in earlier models.\n\nResult [7] talks about MoE architecture again, allowing efficient processing by activating only relevant parameters. Also, their models support long context windows (128K tokens), which is better than many competitors.\n\nResult [10] introduces their GRPO algorithm, a new reinforcement learning method that reduces the need for human supervision. This allows models to self-improve, which is a novel approach.\n\nResult [14] emphasizes their pure reinforcement learning without human feedback, which is a shift from traditional RLHF methods. Even though there were initial issues, combining this with minimal labeled data led to high performance.\n\nPutting this together, the main innovations are the MoE architecture for efficiency, pure reinforcement learning without human feedback, cost-effective development, open-source models, and high performance in reasoning and coding tasks. Also, their ability to achieve this under export restrictions shows innovative problem-solving.\n</think>\n\nDeepSeekが革新的とされる理由は以下の技術的・戦略的特徴に集約されます：\n\n1. **Mixture-of-Experts（MoE）アーキテクチャ**  \n   トークンごとに最適なパラメータを動的に選択することで、計算効率を大幅に向上させつつ高精度を維持[1][7][10]。従来のLLMと比べGPUリソースを大幅削減可能。\n\n2. **純粋強化学習（RL）**  \n   人間のフィードバックを排除し、自己検証と内省を通じて推論能力を獲得[14]。R1-Zeroモデルでは教師あり学習なしで数学・コーディング性能を実現[13]。\n\n3. **低コスト開発**  \n   ChatGPTの1/10以下の開発費（約580万ドル）で同等以上の性能を達成[3][6]。GPU使用量も従来比1/10程度で効率化[3]。\n\n4. **オープンソース戦略**  \n   MITライセンスでモデルを公開し、企業・研究者が自由にカスタマイズ可能[2][8]。商用利用可能な低コストAPIを提供[8]。\n\n5. **推論能力の革新**  \n   思考プロセスを可視化する「Deepthink」モードを導入[11]。数学的推論やプログラミング修正でOpenAI o1を上回る性能を実証[7][13]。\n\n6. **輸出規制下での技術突破**  \n   米国製GPU輸出制限下で独自の効率化手法を開発し、中国のAI開発環境を変革[3][6]。"
+      },
+      "delta": {
+        "role": "assistant",
+        "content": ""
+      }
+    }
+  ]
+}

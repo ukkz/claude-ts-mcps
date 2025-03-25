@@ -1,0 +1,43 @@
+{
+  "id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+  "model": "sonar-pro",
+  "created": 0,
+  "usage": {
+    "prompt_tokens": 30,
+    "completion_tokens": 378,
+    "total_tokens": 408,
+    "search_context_size": "medium"
+  },
+  "citations": [
+    "https://prebell.so-net.ne.jp/feature/pre_25013002.html",
+    "https://zenn.dev/student_blog/articles/eb008f2fc694e7",
+    "https://dc-okinawa.com/ailands/deepseek/",
+    "https://jbpress.ismedia.jp/articles/-/86381",
+    "https://apidog.com/jp/blog/deepseek-r1-review-api-jp/",
+    "https://jbpress.ismedia.jp/articles/-/86340",
+    "https://blog.voice.dolphin-ai.jp/archives/535",
+    "https://toyokeizai.net/articles/-/861309?display=b",
+    "https://qiita.com/ryosuke_ohori/items/f5852495947219ccef84",
+    "https://makio-0559.jugem.jp",
+    "https://stella-international.co.jp/media/deepseek-ai-innovation/",
+    "https://www.youtube.com/watch?v=hx4zWGQizDw",
+    "https://uck-inc.jp/uck-blog/it_tech/7176/",
+    "https://newsdig.tbs.co.jp/articles/-/1701658?page=2",
+    "https://zenn.dev/ap_com/articles/deepseek-ai-revolution"
+  ],
+  "object": "chat.completion",
+  "choices": [
+    {
+      "index": 0,
+      "finish_reason": "stop",
+      "message": {
+        "role": "assistant",
+        "content": "DeepSeekが革新的と言われている主な理由は以下の通りです:\n\n1. 低コスト・高性能の実現\nDeepSeek-R1の開発費用はわずか560万ドル(約8億円)で、従来の大規模言語モデルの開発費用の10分の1程度です[6][4]。にもかかわらず、OpenAIのo1モデルに匹敵する高い性能を実現しています[1][9]。\n\n2. 革新的な学習手法\nDeepSeek-R1は強化学習(RL)を中心に学習されており、従来の教師あり学習(SFT)に依存しない新しいアプローチを採用しています[5][9]。これにより、自律的な思考能力と高度な推論力を獲得しています。\n\n3. 効率的なモデル設計\nMixture-of-Experts (MoE)アーキテクチャを採用し、必要な専門モジュールのみを活性化することで計算効率を高めています[15][7]。\n\n4. オープンソース化\nMITライセンスで提供され、商用利用や改変が自由に行えます[11][15]。これにより、多くの開発者や企業がアクセスしやすくなっています。\n\n5. 低価格なAPI\nAPIの利用料金が他の大手AIサービスと比べて格段に安く設定されています[11][15]。\n\nこれらの特徴により、DeepSeekはAI開発の民主化と技術革新を同時に推し進める可能性を持っており、業界に大きなインパクトを与えています[6][11]。"
+      },
+      "delta": {
+        "role": "assistant",
+        "content": ""
+      }
+    }
+  ]
+}
