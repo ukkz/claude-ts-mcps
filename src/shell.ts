@@ -164,18 +164,18 @@ class ShellExecutor {
   public async executeCommand(command: string, args: string[] = [], cwd?: string, env?: Record<string, string>, timeout?: number, maxOutputSizeMB?: number): Promise<{stdout: string, stderr: string, exitCode: number, success: boolean, error?: string}> {
     try {
       if (!command) {
-        return this.createErrorResponse('コマンドが指定されていません');
+      return this.createErrorResponse('Command not specified');
       }
       
       // セキュリティチェック：コマンドが許可されているか確認
       if (!this.isCommandAllowed(command)) {
         const availableCommands = Array.from(this.allowedCommands).sort();
         return this.createErrorResponse(
-          `コマンドは許可されていません: ${command}\n\n` +
-          `=== 許可されているコマンド ===\n${availableCommands.join(', ')}\n\n` +
-          `=== ヒント ===\n` +
-          `- コマンド名のタイプミスを確認してください\n` +
-          `- 必要なコマンドがリストにない場合は、管理者に連絡してください`
+          `Command not allowed: ${command}\n\n` +
+          `=== ALLOWED COMMANDS ===\n${availableCommands.join(', ')}\n\n` +
+          `=== HINTS ===\n` +
+          `- Check for typos in the command name\n` +
+          `- Contact the administrator if you need additional commands`
         );
       }
       
@@ -187,9 +187,9 @@ class ShellExecutor {
         const errorMessage = error instanceof Error ? error.message : String(error);
         return this.createErrorResponse(
           `${errorMessage}\n\n` +
-          `=== デバッグ情報 ===\n` +
-          `ベースディレクトリ: ${this.baseDirectory}\n` +
-          `指定されたディレクトリ: ${cwd || '(指定なし)'}`
+          `=== DEBUG INFO ===\n` +
+          `Base directory: ${this.baseDirectory}\n` +
+          `Specified directory: ${cwd || '(not specified)'}`
         );
       }
       
@@ -208,11 +208,11 @@ class ShellExecutor {
       const errorStack = error instanceof Error ? error.stack : undefined;
       
       return this.createErrorResponse(
-        `コマンドの実行に失敗しました: ${errorMessage}\n\n` +
-        `=== コマンド情報 ===\n` +
-        `コマンド: ${command} ${args.join(' ')}\n` +
-        `作業ディレクトリ: ${cwd || this.baseDirectory}\n` +
-        (errorStack ? `\n=== スタックトレース ===\n${errorStack}` : '')
+        `Failed to execute command: ${errorMessage}\n\n` +
+        `=== COMMAND INFO ===\n` +
+        `Command: ${command} ${args.join(' ')}\n` +
+        `Working directory: ${cwd || this.baseDirectory}\n` +
+        (errorStack ? `\n=== STACK TRACE ===\n${errorStack}` : '')
       );
     }
   }
@@ -253,18 +253,18 @@ class ShellExecutor {
     // セキュリティチェック：パスがベースディレクトリ内にあることを確認
     if (!resolvedPath.startsWith(this.baseDirectory)) {
       throw new Error(
-        `作業ディレクトリ ${cwd} は許可されたベースディレクトリの外にあります\n` +
-        `ベースディレクトリ: ${this.baseDirectory}\n` +
-        `解決されたパス: ${resolvedPath}`
+        `Working directory ${cwd} is outside the allowed base directory\n` +
+        `Base directory: ${this.baseDirectory}\n` +
+        `Resolved path: ${resolvedPath}`
       );
     }
 
     // ディレクトリが存在することを確認
     if (!fs.existsSync(resolvedPath)) {
       throw new Error(
-        `ディレクトリが存在しません: ${resolvedPath}\n` +
-        `指定されたパス: ${cwd}\n` +
-        `ベースディレクトリ: ${this.baseDirectory}`
+        `Directory does not exist: ${resolvedPath}\n` +
+        `Specified path: ${cwd}\n` +
+        `Base directory: ${this.baseDirectory}`
       );
     }
 
@@ -320,7 +320,7 @@ class ShellExecutor {
               const truncatedChunk = chunk.substring(0, Math.floor(remainingSize / 2)); // UTF-8を考慮して半分に
               stdout += truncatedChunk;
             }
-            stdout += '\n\n[出力が切り詰められました。最初の部分と最後の部分のみ表示しています]\n\n... (中略) ...\n\n';
+            stdout += '\n\n[Output truncated. Showing first and last portions]\n\n... (middle portion omitted) ...\n\n';
             stdoutTruncated = true;
           }
           
@@ -349,7 +349,7 @@ class ShellExecutor {
               const truncatedChunk = chunk.substring(0, Math.floor(remainingSize / 2)); // UTF-8を考慮して半分に
               stderr += truncatedChunk;
             }
-            stderr += '\n\n[エラー出力が切り詰められました。最初の部分と最後の部分のみ表示しています]\n\n... (中略) ...\n\n';
+            stderr += '\n\n[Error output truncated. Showing first and last portions]\n\n... (middle portion omitted) ...\n\n';
             stderrTruncated = true;
           }
           
@@ -489,6 +489,11 @@ const ShellExecuteSchema = z.object({
   maxOutputSizeMB: z.number().optional().default(1).describe("最大出力サイズ（MB単位、デフォルト: 1MB）")
 });
 
+// MCPサーバーとClaude間の通信制限について
+// - デフォルトタイムアウト: 60秒（TypeScript SDK）
+// - メッセージサイズ制限: 明確な仕様はないが、大きすぎる応答はClaude Desktopがクラッシュする可能性あり
+// - エラーコード: -32001 (RequestTimeout)
+
 const GetAllowedCommandsSchema = z.object({});
 
 // シェルツール名をenumオブジェクトとして定義
@@ -510,6 +515,7 @@ server.tool(
   ShellExecuteSchema.shape,
   async (args) => {
     try {
+      const startTime = Date.now();
       const result = await shellExecutor.executeCommand(
         args.command,
         args.args || [],
@@ -553,8 +559,28 @@ server.tool(
           errorMessage += `=== ERROR ===\n${result.error}\n\n`;
         }
         
-        errorMessage += `=== EXECUTION INFO ===\n`;
-        errorMessage += JSON.stringify(errorDetails.executionInfo, null, 2);
+        errorMessage += `=== DEBUGGING INFO ===\n`;
+        errorMessage += `Command executed: ${args.command} ${(args.args || []).join(' ')}\n`;
+        errorMessage += `Total execution time: ${Date.now() - startTime}ms\n`;
+        errorMessage += `MCP transport limits:\n`;
+        errorMessage += `- Default MCP timeout: 60 seconds (TypeScript SDK)\n`;
+        errorMessage += `- Output size limit: ${args.maxOutputSizeMB || 1}MB (configurable)\n`;
+        errorMessage += `- Large outputs may cause Claude Desktop to fail\n\n`;
+        errorMessage += `=== POSSIBLE SOLUTIONS ===\n`;
+        
+        if (result.exitCode === 124) {
+          errorMessage += `- Increase timeout using the timeout parameter\n`;
+          errorMessage += `- Break down the task into smaller operations\n`;
+          errorMessage += `- Use background processes for long-running tasks\n`;
+        } else if (result.stdout.includes('[Output truncated') || result.stderr.includes('[Error output truncated')) {
+          errorMessage += `- Increase maxOutputSizeMB parameter (current: ${args.maxOutputSizeMB || 1}MB)\n`;
+          errorMessage += `- Redirect output to a file instead\n`;
+          errorMessage += `- Filter or summarize the output\n`;
+        } else {
+          errorMessage += `- Check command syntax and arguments\n`;
+          errorMessage += `- Verify the command exists and is in PATH\n`;
+          errorMessage += `- Check file/directory permissions\n`;
+        }
         
         return {
           content: [{ 
