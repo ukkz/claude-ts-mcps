@@ -121,6 +121,7 @@ class ShellExecutor {
   private baseDirectory: string;
   private maxTimeout: number;
   private shellEnvironment: Record<string, string>;
+  private maxOutputSize: number; // 最大出力サイズ（バイト）
 
   /**
    * コンストラクタ
@@ -150,6 +151,9 @@ class ShellExecutor {
     // 最大タイムアウトを設定（デフォルトは60秒）
     this.maxTimeout = 60000;
     
+    // 最大出力サイズを設定（デフォルトは1MB）
+    this.maxOutputSize = 1024 * 1024;
+    
     // シェル環境変数を設定
     this.shellEnvironment = shellEnv;
   }
@@ -157,7 +161,7 @@ class ShellExecutor {
   /**
    * シェルコマンドを実行する
    */
-  public async executeCommand(command: string, args: string[] = [], cwd?: string, env?: Record<string, string>, timeout?: number): Promise<{stdout: string, stderr: string, exitCode: number, success: boolean, error?: string}> {
+  public async executeCommand(command: string, args: string[] = [], cwd?: string, env?: Record<string, string>, timeout?: number, maxOutputSizeMB?: number): Promise<{stdout: string, stderr: string, exitCode: number, success: boolean, error?: string}> {
     try {
       if (!command) {
         return this.createErrorResponse('コマンドが指定されていません');
@@ -188,7 +192,7 @@ class ShellExecutor {
         cwd: workingDir,
         env: mergedEnv,
         timeout: Math.min(timeout || this.maxTimeout, this.maxTimeout)
-      });
+      }, maxOutputSizeMB);
     } catch (error) {
       // 予期しないエラーを処理
       return this.createErrorResponse(
@@ -249,12 +253,25 @@ class ShellExecutor {
   private spawnCommand(
     command: string,
     args: string[],
-    options: SpawnOptions
+    options: SpawnOptions,
+    maxOutputSizeMB?: number
   ): Promise<{stdout: string, stderr: string, exitCode: number, success: boolean, error?: string}> {
     return new Promise((resolve) => {
       let stdout = '';
       let stderr = '';
+      let stdoutSize = 0;
+      let stderrSize = 0;
+      let stdoutTruncated = false;
+      let stderrTruncated = false;
       let timeoutId: NodeJS.Timeout | Timer | null = null;
+      
+      // カスタムまたはデフォルトの最大出力サイズ
+      const maxSize = (maxOutputSizeMB || 1) * 1024 * 1024;
+      
+      // 最後の出力を保持するための循環バッファ
+      const tailBufferSize = Math.min(10240, Math.floor(maxSize / 10)); // 最大サイズの10%または10KBの小さい方
+      let stdoutTailBuffer: string[] = [];
+      let stderrTailBuffer: string[] = [];
       
       // よりよいストリーム処理のためにspawnを使用
       const childProcess = spawn(command, args, {
@@ -263,20 +280,76 @@ class ShellExecutor {
         stdio: 'pipe'
       });
       
-      // 標準出力を収集
+      // 標準出力を収集（サイズ制限付き）
       childProcess.stdout?.on('data', (data) => {
-        stdout += data.toString();
+        const chunk = data.toString();
+        const chunkSize = Buffer.byteLength(chunk, 'utf8');
+        
+        if (stdoutSize + chunkSize <= maxSize - tailBufferSize) {
+          stdout += chunk;
+          stdoutSize += chunkSize;
+        } else {
+          if (!stdoutTruncated) {
+            // 最大サイズに達した場合、残りの容量分だけ追加
+            const remainingSize = maxSize - tailBufferSize - stdoutSize;
+            if (remainingSize > 0) {
+              const truncatedChunk = chunk.substring(0, Math.floor(remainingSize / 2)); // UTF-8を考慮して半分に
+              stdout += truncatedChunk;
+            }
+            stdout += '\n\n[出力が切り詰められました。最初の部分と最後の部分のみ表示しています]\n\n... (中略) ...\n\n';
+            stdoutTruncated = true;
+          }
+          
+          // 最後の部分を循環バッファに保存
+          stdoutTailBuffer.push(chunk);
+          // バッファサイズを制限
+          while (stdoutTailBuffer.join('').length > tailBufferSize) {
+            stdoutTailBuffer.shift();
+          }
+        }
       });
       
-      // 標準エラーを収集
+      // 標準エラーを収集（サイズ制限付き）
       childProcess.stderr?.on('data', (data) => {
-        stderr += data.toString();
+        const chunk = data.toString();
+        const chunkSize = Buffer.byteLength(chunk, 'utf8');
+        
+        if (stderrSize + chunkSize <= maxSize - tailBufferSize) {
+          stderr += chunk;
+          stderrSize += chunkSize;
+        } else {
+          if (!stderrTruncated) {
+            // 最大サイズに達した場合、残りの容量分だけ追加
+            const remainingSize = maxSize - tailBufferSize - stderrSize;
+            if (remainingSize > 0) {
+              const truncatedChunk = chunk.substring(0, Math.floor(remainingSize / 2)); // UTF-8を考慮して半分に
+              stderr += truncatedChunk;
+            }
+            stderr += '\n\n[エラー出力が切り詰められました。最初の部分と最後の部分のみ表示しています]\n\n... (中略) ...\n\n';
+            stderrTruncated = true;
+          }
+          
+          // 最後の部分を循環バッファに保存
+          stderrTailBuffer.push(chunk);
+          // バッファサイズを制限
+          while (stderrTailBuffer.join('').length > tailBufferSize) {
+            stderrTailBuffer.shift();
+          }
+        }
       });
       
       // プロセス完了の処理
       childProcess.on('close', (exitCode) => {
         if (timeoutId) {
           clearTimeout(timeoutId);
+        }
+        
+        // 切り詰められた場合、最後の部分を追加
+        if (stdoutTruncated && stdoutTailBuffer.length > 0) {
+          stdout += stdoutTailBuffer.join('');
+        }
+        if (stderrTruncated && stderrTailBuffer.length > 0) {
+          stderr += stderrTailBuffer.join('');
         }
         
         resolve({
@@ -355,7 +428,8 @@ const ShellExecuteSchema = z.object({
   args: z.array(z.string()).optional().default([]).describe("コマンド引数（配列形式）"),
   cwd: z.string().optional().describe("作業ディレクトリ"),
   env: z.record(z.string()).optional().describe("環境変数"),
-  timeout: z.number().optional().describe("タイムアウト（ミリ秒）")
+  timeout: z.number().optional().describe("タイムアウト（ミリ秒）"),
+  maxOutputSizeMB: z.number().optional().default(1).describe("最大出力サイズ（MB単位、デフォルト: 1MB）")
 });
 
 const GetAllowedCommandsSchema = z.object({});
@@ -384,7 +458,8 @@ server.tool(
         args.args || [],
         args.cwd,
         args.env,
-        args.timeout
+        args.timeout,
+        args.maxOutputSizeMB
       );
       
       if (!result.success) {
