@@ -169,8 +169,13 @@ class ShellExecutor {
       
       // セキュリティチェック：コマンドが許可されているか確認
       if (!this.isCommandAllowed(command)) {
+        const availableCommands = Array.from(this.allowedCommands).sort();
         return this.createErrorResponse(
-          `コマンドは許可されていません: ${command}。許可されているコマンド: ${Array.from(this.allowedCommands).join(', ')}`
+          `コマンドは許可されていません: ${command}\n\n` +
+          `=== 許可されているコマンド ===\n${availableCommands.join(', ')}\n\n` +
+          `=== ヒント ===\n` +
+          `- コマンド名のタイプミスを確認してください\n` +
+          `- 必要なコマンドがリストにない場合は、管理者に連絡してください`
         );
       }
       
@@ -179,8 +184,12 @@ class ShellExecutor {
       try {
         workingDir = this.validateWorkingDirectory(cwd);
       } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
         return this.createErrorResponse(
-          error instanceof Error ? error.message : String(error)
+          `${errorMessage}\n\n` +
+          `=== デバッグ情報 ===\n` +
+          `ベースディレクトリ: ${this.baseDirectory}\n` +
+          `指定されたディレクトリ: ${cwd || '(指定なし)'}`
         );
       }
       
@@ -195,8 +204,15 @@ class ShellExecutor {
       }, maxOutputSizeMB);
     } catch (error) {
       // 予期しないエラーを処理
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      
       return this.createErrorResponse(
-        `コマンドの実行に失敗しました: ${error instanceof Error ? error.message : String(error)}`
+        `コマンドの実行に失敗しました: ${errorMessage}\n\n` +
+        `=== コマンド情報 ===\n` +
+        `コマンド: ${command} ${args.join(' ')}\n` +
+        `作業ディレクトリ: ${cwd || this.baseDirectory}\n` +
+        (errorStack ? `\n=== スタックトレース ===\n${errorStack}` : '')
       );
     }
   }
@@ -236,12 +252,20 @@ class ShellExecutor {
 
     // セキュリティチェック：パスがベースディレクトリ内にあることを確認
     if (!resolvedPath.startsWith(this.baseDirectory)) {
-      throw new Error(`作業ディレクトリ ${cwd} は許可されたベースディレクトリの外にあります`);
+      throw new Error(
+        `作業ディレクトリ ${cwd} は許可されたベースディレクトリの外にあります\n` +
+        `ベースディレクトリ: ${this.baseDirectory}\n` +
+        `解決されたパス: ${resolvedPath}`
+      );
     }
 
     // ディレクトリが存在することを確認
     if (!fs.existsSync(resolvedPath)) {
-      throw new Error(`ディレクトリが存在しません: ${resolvedPath}`);
+      throw new Error(
+        `ディレクトリが存在しません: ${resolvedPath}\n` +
+        `指定されたパス: ${cwd}\n` +
+        `ベースディレクトリ: ${this.baseDirectory}`
+      );
     }
 
     return resolvedPath;
@@ -366,25 +390,58 @@ class ShellExecutor {
           clearTimeout(timeoutId);
         }
         
+        // エラーの詳細情報を含める
+        const errorInfo = `Process error: ${error.message}`;
+        const systemError = error as NodeJS.ErrnoException;
+        let additionalInfo = '';
+        
+        if (systemError.code === 'ENOENT') {
+          additionalInfo = `\nCommand not found: ${command}`;
+          additionalInfo += `\nPATH: ${options.env?.PATH || process.env.PATH}`;
+        } else if (systemError.code === 'EACCES') {
+          additionalInfo = `\nPermission denied: ${command}`;
+        } else if (systemError.code) {
+          additionalInfo = `\nError code: ${systemError.code}`;
+        }
+        
         resolve({
           stdout,
-          stderr: error.message,
+          stderr: stderr + errorInfo + additionalInfo,
           exitCode: 1,
           success: false,
-          error: error.message
+          error: error.message + additionalInfo
         });
       });
       
       // タイムアウト処理の設定
       if (options.timeout) {
         timeoutId = setTimeout(() => {
-          childProcess.kill();
+          childProcess.kill('SIGTERM');
+          
+          // 1秒後に強制終了
+          setTimeout(() => {
+            if (!childProcess.killed) {
+              childProcess.kill('SIGKILL');
+            }
+          }, 1000);
+          
+          const timeoutInfo = `\n\n=== TIMEOUT INFO ===\n`;
+          const timeoutDetails = {
+            timeout: options.timeout,
+            command: command,
+            args: args,
+            stdout_size: stdoutSize,
+            stderr_size: stderrSize,
+            stdout_truncated: stdoutTruncated,
+            stderr_truncated: stderrTruncated
+          };
+          
           resolve({
-            stdout,
-            stderr: `コマンドは${options.timeout}ms後にタイムアウトしました`,
-            exitCode: 1,
+            stdout: stdout + (stdoutTruncated ? stdoutTailBuffer.join('') : ''),
+            stderr: stderr + (stderrTruncated ? stderrTailBuffer.join('') : '') + timeoutInfo + JSON.stringify(timeoutDetails, null, 2),
+            exitCode: 124, // GNU timeout 互換の終了コード
             success: false,
-            error: 'コマンド実行がタイムアウトしました'
+            error: `Command timed out after ${options.timeout}ms`
           });
         }, options.timeout);
       }
@@ -463,10 +520,46 @@ server.tool(
       );
       
       if (!result.success) {
+        // エラー時により詳細な情報を提供
+        const errorDetails = {
+          command: args.command,
+          args: args.args || [],
+          cwd: args.cwd || baseDirectory,
+          exitCode: result.exitCode,
+          stdout: result.stdout || '(no stdout)',
+          stderr: result.stderr || '(no stderr)',
+          error: result.error || null,
+          executionInfo: {
+            timeout: args.timeout || 60000,
+            maxOutputSizeMB: args.maxOutputSizeMB || 1,
+            baseDirectory: baseDirectory
+          }
+        };
+        
+        // エラーメッセージの構築
+        let errorMessage = `Command failed: ${args.command} ${(args.args || []).join(' ')}\n`;
+        errorMessage += `Exit code: ${result.exitCode}\n`;
+        errorMessage += `Working directory: ${args.cwd || baseDirectory}\n\n`;
+        
+        if (result.stderr) {
+          errorMessage += `=== STDERR ===\n${result.stderr}\n\n`;
+        }
+        
+        if (result.stdout) {
+          errorMessage += `=== STDOUT ===\n${result.stdout}\n\n`;
+        }
+        
+        if (result.error) {
+          errorMessage += `=== ERROR ===\n${result.error}\n\n`;
+        }
+        
+        errorMessage += `=== EXECUTION INFO ===\n`;
+        errorMessage += JSON.stringify(errorDetails.executionInfo, null, 2);
+        
         return {
           content: [{ 
             type: "text", 
-            text: `Error: ${result.stderr || result.error || "Unknown error"}` 
+            text: errorMessage
           }],
           isError: true
         };
@@ -480,10 +573,27 @@ server.tool(
         isError: false
       };
     } catch (error) {
+      // 予期しないエラーの場合も詳細情報を提供
+      const errorDetails = {
+        command: args.command,
+        args: args.args || [],
+        cwd: args.cwd || baseDirectory,
+        error: error instanceof Error ? {
+          message: error.message,
+          stack: error.stack,
+          name: error.name
+        } : String(error),
+        executionInfo: {
+          timeout: args.timeout || 60000,
+          maxOutputSizeMB: args.maxOutputSizeMB || 1,
+          baseDirectory: baseDirectory
+        }
+      };
+      
       return {
         content: [{ 
           type: "text", 
-          text: `Error: ${error instanceof Error ? error.message : String(error)}` 
+          text: `Unexpected error during command execution:\n\n${JSON.stringify(errorDetails, null, 2)}` 
         }],
         isError: true
       };
