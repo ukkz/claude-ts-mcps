@@ -511,7 +511,7 @@ const server = new McpServer({
 // シェルツールを定義
 server.tool(
   ShellTools.EXECUTE,
-  "Executes shell commands for development operations. This tool allows running various development commands such as package managers (npm, yarn, bun), version control (git), file operations (ls, mkdir, cp), and development tools (node, python, tsc). Use this tool when you need to install dependencies, initialize projects, compile code, or perform file system operations. Commands are run in a controlled environment with security restrictions. Each command requires the base command name and optional arguments, working directory, environment variables, and timeout.",
+  "Execute shell commands for development tasks. Supports package managers (npm, yarn, bun), git, file operations, and dev tools (node, python, tsc). Runs in controlled environment with security restrictions.",
   ShellExecuteSchema.shape,
   async (args) => {
     try {
@@ -629,7 +629,7 @@ server.tool(
 
 server.tool(
   ShellTools.GET_ALLOWED_COMMANDS,
-  "Retrieves the list of shell commands that are allowed to be executed by the shell_execute tool. This provides visibility into the available commands without attempting to run them. The response includes all permitted commands categorized by their function (package managers, version control, file operations, etc.). Use this tool when you need to determine which commands are available in the environment before attempting to use them with shell_execute.",
+  "Get list of allowed shell commands. Shows available commands without executing them. Useful to check what commands can be run before using shell_execute.",
   GetAllowedCommandsSchema.shape,
   async () => {
     try {

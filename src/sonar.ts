@@ -158,32 +158,7 @@ function formatResultsAsMarkdown(data: PerplexityResponse): string {
 }
 
 // 英語での説明文（他のWeb検索ツールとの差別化を明確化）
-const TOOL_DESCRIPTION = `
-Provides AI-powered web search that returns comprehensive, synthesized answers with citations rather than raw search results. Unlike keyword-based search tools (e.g., brave_web_search), Sonar understands natural language questions and provides coherent, contextual responses.
-
-Key differentiators from other search tools:
-- **AI-Synthesized Answers**: Returns complete, coherent answers rather than lists of web pages
-- **Natural Language Understanding**: Accepts complex questions in natural language, not just keywords
-- **Built-in Citations**: Every response includes numbered citations linking to source materials
-- **Multiple AI Models**: Choose from various models optimized for different use cases:
-  - sonar: Fast, general-purpose searches
-  - sonar-pro: Complex queries with larger context (200k tokens)
-  - sonar-reasoning: Explicit reasoning and chain-of-thought responses
-  - sonar-reasoning-pro: Advanced reasoning with structured outputs
-  - sonar-deep-research: Deep research tasks with comprehensive source analysis
-
-When to use this over other search tools:
-- When you need a synthesized answer rather than raw search results
-- For complex questions requiring context and understanding
-- When citation tracking is critical for verification
-- For research tasks requiring deep analysis of multiple sources
-
-Optimal usage patterns:
-- Ask complete questions rather than keywords
-- For complex topics, use sonar-pro or sonar-deep-research models
-- Adjust search_context_size based on query complexity (low for simple facts, high for research)
-- Use the multi-search tool for comprehensive research across related topics
-`
+const TOOL_DESCRIPTION = "AI-powered web search that returns synthesized, comprehensive answers with citations. Unlike keyword-based searches, this tool understands natural language questions and provides coherent responses by analyzing multiple sources. Best for complex questions requiring in-depth understanding and verified information. Returns AI-generated answers with numbered citations linking to sources."
 
 // ツールの実装
 server.tool(
@@ -235,7 +210,7 @@ server.tool(
 // マルチクエリツールの実装
 server.tool(
   "sonar_multi_search",
-  "Performs multiple related searches simultaneously and returns AI-synthesized answers for each query. Unlike running multiple keyword searches, this tool maintains context across queries and provides coherent, interrelated answers. Ideal for comprehensive research requiring multiple perspectives or breaking down complex topics into digestible components. Each query receives a complete AI-generated response with citations, not just raw search results.",
+  "Performs multiple related searches simultaneously and returns combined results. Ideal for complex research questions that benefit from being broken down into simpler components. Each query receives its own dedicated response with proper citations, enabling comprehensive information synthesis.",
   {
     queries: z.array(z.string()).describe("List of related natural language questions - each will receive a full AI-synthesized answer"),
     model: z.enum(["sonar", "sonar-pro", "sonar-reasoning", "sonar-reasoning-pro", "sonar-deep-research"]).optional().describe("Model to use across all queries - consider sonar-pro or sonar-deep-research for complex research (default: sonar)"),
@@ -299,7 +274,7 @@ server.tool(
 // タイムアウト付きの検索実行
 server.tool(
   "sonar_search_with_timeout",
-  "Performs an AI-powered natural language search with a strict timeout to ensure fast responses. Unlike the standard sonar_search, this prioritizes speed over completeness. Returns AI-synthesized answers with citations, but may provide partial results if the full analysis cannot complete within the timeout. Useful for real-time applications or when you need quick AI-generated summaries rather than comprehensive research.",
+  "Performs a natural language search with a strict timeout to ensure fast responses. If the search takes too long, it returns partial results or a timeout message. Useful for time-sensitive queries where some information is better than none.",
   {
     query: z.string().describe("Natural language question for quick AI-powered answer"),
     timeout_ms: z.number().optional().describe("Maximum time to wait for response in milliseconds (default: 20000)"),

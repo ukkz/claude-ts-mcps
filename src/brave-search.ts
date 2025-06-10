@@ -332,7 +332,7 @@ Description: ${descData.descriptions[poi.id] || 'No description available'}
  */
 server.tool(
   "brave_web_search",
-  "Retrieves up-to-date information from the web using Brave Search. You should proactively use this tool whenever you need current information beyond your knowledge cutoff, when answering questions about recent events, when asked about specific facts you're uncertain about, or when providing comprehensive answers. Search automatically when you suspect information might be outdated or when greater detail would improve your response. Use this for news, technical information, current events, product details, or any topic where fresh, accurate data would enhance your answer quality.",
+  "Keyword-based web search returning a list of search results. Each result includes title, description, and URL. Best for quickly scanning multiple web pages or when you need to see diverse sources. Returns up to 20 search results as a list, not synthesized answers.",
   {
     query: z.string().describe("Search query (max 400 chars, 50 words)"),
     count: z.number().optional().describe("Number of results (1-20, default 10)"),
@@ -369,7 +369,7 @@ server.tool(
  */
 server.tool(
   "brave_local_search",
-  "Finds information about local businesses, services, attractions, and locations with real-time data. Use this tool proactively whenever a query mentions specific places or location-based information. This is especially useful for questions about restaurants, shops, tourist attractions, local services, or any place-based inquiry. You should automatically search when users ask about places 'near' somewhere, business hours, local reviews, addresses, or location details that would benefit from current information. This provides much more accurate and up-to-date information than your built-in knowledge.",
+  "Search local businesses, services, and places. Returns real-time data including address, phone, ratings, hours. Use for location-based queries.",
   {
     query: z.string().describe("Local search query (e.g. 'pizza near Central Park')"),
     count: z.number().optional().describe("Number of results (1-20, default 5)")

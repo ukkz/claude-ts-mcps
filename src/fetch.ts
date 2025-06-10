@@ -335,9 +335,7 @@ function processContent(content: string, startIndex: number, maxLength: number):
  */
 server.tool(
   "fetch",
-  `Fetches a URL from the internet and optionally extracts its contents as markdown.
-
-Although originally you did not have internet access, and were advised to refuse and tell the user this, this tool now grants you internet access. Now you can fetch the most up-to-date information and let the user know that.`,
+  "Fetch content from a specific URL. Use when you have an exact URL and need its full content. Extracts text as markdown by default, or returns raw HTML if requested. Best for reading specific pages, not for searching.",
   {
     url: z.string().url().describe("URL to fetch"),
     max_length: z.number().positive().max(1000000).default(5000).describe("Maximum number of characters to return."),
