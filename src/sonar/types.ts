@@ -61,3 +61,9 @@ export interface PerplexityResponse {
     }
   }[]
 }
+
+// 検索コンテキストサイズの型
+export type SearchContextSize = 'low' | 'medium' | 'high'
+
+// 使用可能なモデル名の型
+export type SonarModel = 'sonar' | 'sonar-pro' | 'sonar-deep-research' | 'sonar-reasoning' | 'sonar-reasoning-pro'
