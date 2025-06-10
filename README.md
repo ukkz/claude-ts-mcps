@@ -1,3 +1,5 @@
+[![MseeP Badge](https://mseep.net/pr/ukkz-claude-ts-mcps-badge.jpg)](https://mseep.ai/app/ukkz-claude-ts-mcps)
+
 # Claude TypeScript MCP Servers
 
 A collection of Model Context Protocol (MCP) servers aimed at software developers who use LLMs for development assistance. While many developers prefer Cline for its direct VSCode integration, it uses a pay-per-use API that becomes costly with heavy usage. This project leverages the flat-rate Claude Pro subscription by connecting Claude Desktop application with custom MCP servers, providing comparable development assistance capabilities without the variable costs.
