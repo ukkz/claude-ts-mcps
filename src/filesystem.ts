@@ -19,6 +19,7 @@ import zlib from "zlib";
 import { pipeline } from "stream/promises";
 import { exec } from "child_process";
 
+
 const execAsync = promisify(exec);
 
 // Command line argument parsing
@@ -268,7 +269,7 @@ interface SearchResult {
 const server = new Server(
   {
     name: "secure-filesystem-server",
-    version: "0.5.0",
+    version: "0.6.0",
   },
   {
     capabilities: {
@@ -635,7 +636,11 @@ async function compressFiles(
     if (format === "tar.gz") {
       // tar.gzの代替実装（単一ファイルのgzip圧縮のみ）
       if (validFiles.length === 1) {
-        const input = createReadStream(validFiles[0]);
+        const firstFile = validFiles[0];
+        if (!firstFile) {
+          throw new Error("No files to compress");
+        }
+        const input = createReadStream(firstFile);
         const output = createWriteStream(validOutput);
         const gzip = zlib.createGzip();
         
