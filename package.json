@@ -4,10 +4,28 @@
   "note": {
     "reference": "https://modelcontextprotocol.io/quickstart/server"
   },
+  "scripts": {
+    "type-check": "tsc --noEmit",
+    "type-check:watch": "tsc --noEmit --watch",
+    "type-check:strict": "tsc --noEmit --strict",
+    "type-check:loose": "tsc --noEmit --noUnusedLocals false --noUnusedParameters false",
+    "check": "bun run type-check",
+    "check:strict": "bun run type-check:strict",
+    "check:loose": "bun run type-check:loose",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "format:src": "prettier --write 'src/**/*.{ts,js,json}'",
+    "format:check:src": "prettier --check 'src/**/*.{ts,js,json}'",
+    "lint": "bun run format:check && bun run type-check",
+    "lint:fix": "bun run format && bun run type-check"
+  },
   "devDependencies": {
     "@types/bun": "latest",
     "@types/diff": "^7.0.1",
-    "@types/node": "^22.13.10"
+    "@types/node": "^22.13.10",
+    "@types/puppeteer": "^7.0.4",
+    "prettier": "^3.5.3",
+    "typescript": "^5.8.3"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.7.0",
