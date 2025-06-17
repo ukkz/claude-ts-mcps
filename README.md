@@ -107,9 +107,31 @@ Create a configuration file for Claude Desktop with all the MCP servers:
 
 ### File System Operations (`filesystem`)
 
-- **Security**: Restricted to specified directories
-- **Capabilities**: Read, write, move files, create directories, search files
-- **Use Cases**: Code editing, project management, file analysis
+- **Security**: Restricted to specified directories with symlink protection
+- **Core Operations**: 
+  - Read/write files with encoding support (utf-8, base64, hex)
+  - Partial file reading by byte range or line range
+  - Move, copy, delete, append files
+  - Create directories and manage file trees
+- **Advanced Editing**:
+  - Text replacement with diff preview
+  - Line-based operations (replace, insert, delete specific lines)
+  - Regular expression replacements with capture groups
+- **Search Capabilities**:
+  - Search files by name patterns
+  - Search content within files (plain text or regex)
+  - Exclude patterns support
+- **Batch Operations**:
+  - Execute multiple file operations efficiently
+  - Parallel execution for read operations
+  - Transactional mode with rollback support
+- **Archive Management**:
+  - Compress files (zip, tar, tar.gz)
+  - Extract archives with overwrite control
+- **File Monitoring**:
+  - Check for file changes since specific time
+  - Support for change, rename, and delete events
+- **Use Cases**: Code editing, project management, file analysis, bulk operations
 
 ### Git Integration (`git`)
 

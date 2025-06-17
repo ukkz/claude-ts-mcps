@@ -12,8 +12,14 @@ import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { createTwoFilesPatch } from "diff";
 import { minimatch } from "minimatch";
-import { createReadStream } from "fs";
+import { createReadStream, createWriteStream } from "fs";
 import { createInterface } from "readline";
+import { promisify } from "util";
+import zlib from "zlib";
+import { pipeline } from "stream/promises";
+import { exec } from "child_process";
+
+const execAsync = promisify(exec);
 
 // Command line argument parsing
 const args = process.argv.slice(2);
@@ -39,15 +45,15 @@ const allowedDirectories = args.map((dir) => normalizePath(path.resolve(expandHo
 
 // Validate that all directories exist and are accessible
 await Promise.all(
-  args.map(async (dir) => {
+  allowedDirectories.map(async (dir, index) => {
     try {
       const stats = await fs.stat(dir);
       if (!stats.isDirectory()) {
-        console.error(`Error: ${dir} is not a directory`);
+        console.error(`Error: ${args[index]} is not a directory`);
         process.exit(1);
       }
     } catch (error) {
-      console.error(`Error accessing directory ${dir}:`, error);
+      console.error(`Error accessing directory ${args[index]}:`, error);
       process.exit(1);
     }
   }),
@@ -99,6 +105,15 @@ async function validatePath(requestedPath: string): Promise<string> {
 // Schema definitions
 const ReadFileArgsSchema = z.object({
   path: z.string(),
+  encoding: z.enum(["utf-8", "base64", "hex"]).default("utf-8"),
+  range: z.object({
+    start: z.number().optional(),
+    end: z.number().optional(),
+    lines: z.object({
+      from: z.number().positive(),
+      to: z.number().positive()
+    }).optional()
+  }).optional()
 });
 
 const ReadMultipleFilesArgsSchema = z.object({
@@ -110,10 +125,26 @@ const WriteFileArgsSchema = z.object({
   content: z.string(),
 });
 
-const EditOperation = z.object({
-  oldText: z.string().describe("Text to search for - must match exactly"),
-  newText: z.string().describe("Text to replace with"),
-});
+// EditOperationをユニオン型に変更
+const EditOperation = z.union([
+  z.object({
+    type: z.literal("replace").default("replace"),
+    oldText: z.string().describe("Text to search for - must match exactly"),
+    newText: z.string().describe("Text to replace with"),
+  }),
+  z.object({
+    type: z.literal("line"),
+    lineNumber: z.number().positive().describe("Line number (1-based)"),
+    action: z.enum(["replace", "insert", "delete"]).describe("Action to perform"),
+    content: z.string().optional().describe("Content for replace or insert actions"),
+  }),
+  z.object({
+    type: z.literal("regex"),
+    pattern: z.string().describe("Regular expression pattern"),
+    replacement: z.string().describe("Replacement string (can use $1, $2, etc.)"),
+    flags: z.string().optional().default("g").describe("Regex flags (g, i, m, etc.)"),
+  }),
+]);
 
 const EditFileArgsSchema = z.object({
   path: z.string(),
@@ -174,8 +205,46 @@ const SearchContentArgsSchema = z.object({
   maxResults: z.number().default(100).describe("最大結果数"),
 });
 
+// Phase 3: バッチ操作のスキーマ定義
+const BatchOperationSchema = z.object({
+  type: z.enum(["read", "write", "copy", "move", "delete", "append"]),
+  params: z.record(z.any()),
+  continueOnError: z.boolean().default(false),
+});
+
+const BatchOperationsArgsSchema = z.object({
+  operations: z.array(BatchOperationSchema),
+  parallel: z.boolean().default(false).describe("読み取り操作のみ並列実行可能"),
+  transactional: z.boolean().default(false).describe("エラー時に全操作をロールバック"),
+});
+
+// Phase 3: ファイル監視のスキーマ定義（簡易実装）
+const WatchFileArgsSchema = z.object({
+  path: z.string(),
+  events: z.array(z.enum(['change', 'rename', 'delete'])).default(['change']),
+  recursive: z.boolean().default(false),
+  // MCPの制約により、監視は1回のチェックのみ
+  since: z.number().optional().describe("この時刻以降の変更を検出（ミリ秒）"),
+});
+
+// Phase 3: 圧縮・解凍のスキーマ定義
+const CompressFilesArgsSchema = z.object({
+  files: z.array(z.string()),
+  output: z.string(),
+  format: z.enum(["zip", "tar", "tar.gz"]).default("zip"),
+});
+
+const ExtractArchiveArgsSchema = z.object({
+  archive: z.string(),
+  destination: z.string(),
+  overwrite: z.boolean().default(false),
+});
+
 const ToolInputSchema = ToolSchema.shape.inputSchema;
 type ToolInput = z.infer<typeof ToolInputSchema>;
+
+// EditOperationの型定義
+type EditOperationType = z.infer<typeof EditOperation>;
 
 interface FileInfo {
   size: number;
@@ -199,7 +268,7 @@ interface SearchResult {
 const server = new Server(
   {
     name: "secure-filesystem-server",
-    version: "0.3.0",
+    version: "0.5.0",
   },
   {
     capabilities: {
@@ -268,6 +337,369 @@ async function searchFiles(
   return results;
 }
 
+// Phase 3: バッチ操作の実装
+interface BatchOperationResult {
+  operation: z.infer<typeof BatchOperationSchema>;
+  success: boolean;
+  result?: any;
+  error?: string;
+}
+
+// ロールバック用の情報を保存
+interface RollbackInfo {
+  type: string;
+  params: any;
+}
+
+async function executeBatchOperations(
+  operations: z.infer<typeof BatchOperationSchema>[],
+  options: { parallel?: boolean; transactional?: boolean } = {}
+): Promise<BatchOperationResult[]> {
+  const results: BatchOperationResult[] = [];
+  const rollbackStack: RollbackInfo[] = [];
+
+  // 読み取り操作かどうかをチェック
+  const isReadOperation = (type: string) => ["read"].includes(type);
+
+  // 単一操作の実行
+  const executeOperation = async (op: z.infer<typeof BatchOperationSchema>): Promise<BatchOperationResult> => {
+    try {
+      let result: any;
+
+      switch (op.type) {
+        case "read": {
+          const validPath = await validatePath(op.params.path);
+          result = await fs.readFile(validPath, "utf-8");
+          break;
+        }
+        case "write": {
+          const validPath = await validatePath(op.params.path);
+          // ロールバック用に元の内容を保存
+          if (options.transactional) {
+            try {
+              const originalContent = await fs.readFile(validPath, "utf-8");
+              rollbackStack.push({ type: "write", params: { path: op.params.path, content: originalContent } });
+            } catch {
+              // ファイルが存在しない場合は削除でロールバック
+              rollbackStack.push({ type: "delete", params: { path: op.params.path } });
+            }
+          }
+          await fs.writeFile(validPath, op.params.content, "utf-8");
+          result = `Written to ${op.params.path}`;
+          break;
+        }
+        case "copy": {
+          const validSource = await validatePath(op.params.source);
+          const validDest = await validatePath(op.params.destination);
+          if (options.transactional) {
+            rollbackStack.push({ type: "delete", params: { path: op.params.destination } });
+          }
+          await fs.copyFile(validSource, validDest);
+          result = `Copied ${op.params.source} to ${op.params.destination}`;
+          break;
+        }
+        case "move": {
+          const validSource = await validatePath(op.params.source);
+          const validDest = await validatePath(op.params.destination);
+          if (options.transactional) {
+            rollbackStack.push({ type: "move", params: { source: op.params.destination, destination: op.params.source } });
+          }
+          await fs.rename(validSource, validDest);
+          result = `Moved ${op.params.source} to ${op.params.destination}`;
+          break;
+        }
+        case "delete": {
+          const validPath = await validatePath(op.params.path);
+          if (options.transactional) {
+            const content = await fs.readFile(validPath, "utf-8");
+            rollbackStack.push({ type: "write", params: { path: op.params.path, content } });
+          }
+          await fs.unlink(validPath);
+          result = `Deleted ${op.params.path}`;
+          break;
+        }
+        case "append": {
+          const validPath = await validatePath(op.params.path);
+          if (options.transactional) {
+            try {
+              const originalContent = await fs.readFile(validPath, "utf-8");
+              rollbackStack.push({ type: "write", params: { path: op.params.path, content: originalContent } });
+            } catch {
+              rollbackStack.push({ type: "delete", params: { path: op.params.path } });
+            }
+          }
+          await fs.appendFile(validPath, op.params.content, "utf-8");
+          result = `Appended to ${op.params.path}`;
+          break;
+        }
+        default:
+          throw new Error(`Unknown operation type: ${op.type}`);
+      }
+
+      return { operation: op, success: true, result };
+    } catch (error) {
+      return {
+        operation: op,
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  };
+
+  // ロールバック処理
+  const performRollback = async () => {
+    console.error("Performing rollback due to transaction failure...");
+    for (const rollback of rollbackStack.reverse()) {
+      try {
+        await executeOperation({ type: rollback.type as any, params: rollback.params, continueOnError: false });
+      } catch (error) {
+        console.error(`Rollback failed for ${rollback.type}:`, error);
+      }
+    }
+  };
+
+  try {
+    if (options.parallel) {
+      // 並列実行（読み取り操作のみ）
+      const readOps = operations.filter(op => isReadOperation(op.type));
+      const otherOps = operations.filter(op => !isReadOperation(op.type));
+
+      // 読み取り操作を並列実行
+      const readResults = await Promise.all(readOps.map(executeOperation));
+      results.push(...readResults);
+
+      // その他の操作を順次実行
+      for (const op of otherOps) {
+        const result = await executeOperation(op);
+        results.push(result);
+
+        if (!result.success && !op.continueOnError && options.transactional) {
+          await performRollback();
+          throw new Error(`Operation failed: ${result.error}`);
+        }
+      }
+    } else {
+      // 順次実行
+      for (const op of operations) {
+        const result = await executeOperation(op);
+        results.push(result);
+
+        if (!result.success && !op.continueOnError) {
+          if (options.transactional) {
+            await performRollback();
+          }
+          break;
+        }
+      }
+    }
+  } catch (error) {
+    // エラーが発生した場合、結果に含める
+    if (results.length === 0 || !results[results.length - 1]?.error) {
+      const failedOp = operations[results.length] || operations[0];
+      if (failedOp) {
+        results.push({
+          operation: failedOp,
+          success: false,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+  }
+
+  return results;
+}
+
+// Phase 3: ファイル監視機能（簡易実装）
+interface FileChangeInfo {
+  path: string;
+  type: 'change' | 'rename' | 'delete' | 'none';
+  oldStats?: FileInfo;
+  newStats?: FileInfo;
+}
+
+async function checkFileChanges(
+  filePath: string,
+  options: {
+    events?: ('change' | 'rename' | 'delete')[];
+    recursive?: boolean;
+    since?: number;
+  } = {}
+): Promise<FileChangeInfo[]> {
+  const changes: FileChangeInfo[] = [];
+  const events = options.events || ['change'];
+  const since = options.since || Date.now() - 1000; // デフォルトは1秒前
+
+  async function checkSingleFile(path: string): Promise<FileChangeInfo | null> {
+    try {
+      const stats = await getFileStats(path);
+      const modifiedTime = stats.modified.getTime();
+
+      if (modifiedTime > since) {
+        if (events.includes('change')) {
+          return {
+            path,
+            type: 'change',
+            newStats: stats,
+          };
+        }
+      }
+      return null;
+    } catch (error) {
+      // ファイルが存在しない場合
+      if (events.includes('delete')) {
+        return {
+          path,
+          type: 'delete',
+        };
+      }
+      return null;
+    }
+  }
+
+  async function checkDirectory(dirPath: string): Promise<void> {
+    const entries = await fs.readdir(dirPath, { withFileTypes: true });
+
+    for (const entry of entries) {
+      const fullPath = path.join(dirPath, entry.name);
+
+      try {
+        await validatePath(fullPath);
+
+        if (entry.isDirectory() && options.recursive) {
+          await checkDirectory(fullPath);
+        } else {
+          const change = await checkSingleFile(fullPath);
+          if (change) {
+            changes.push(change);
+          }
+        }
+      } catch {
+        // アクセスできないパスは無視
+      }
+    }
+  }
+
+  const validPath = await validatePath(filePath);
+  const stats = await fs.stat(validPath);
+
+  if (stats.isDirectory()) {
+    await checkDirectory(validPath);
+  } else {
+    const change = await checkSingleFile(validPath);
+    if (change) {
+      changes.push(change);
+    }
+  }
+
+  return changes;
+}
+
+// Phase 3: 圧縮・解凍機能
+async function compressFiles(
+  files: string[],
+  outputPath: string,
+  format: "zip" | "tar" | "tar.gz" = "zip"
+): Promise<string> {
+  // 入力ファイルの検証
+  const validFiles = await Promise.all(files.map(f => validatePath(f)));
+  const validOutput = await validatePath(outputPath);
+
+  // フォーマットに応じた圧縮コマンドを実行
+  try {
+    switch (format) {
+      case "zip": {
+        // zipコマンドを使用
+        const fileList = validFiles.map(f => `"${f}"`).join(" ");
+        await execAsync(`zip -r "${validOutput}" ${fileList}`);
+        break;
+      }
+      case "tar": {
+        // tarコマンドを使用
+        const fileList = validFiles.map(f => `"${f}"`).join(" ");
+        await execAsync(`tar -cf "${validOutput}" ${fileList}`);
+        break;
+      }
+      case "tar.gz": {
+        // tar.gz形式
+        const fileList = validFiles.map(f => `"${f}"`).join(" ");
+        await execAsync(`tar -czf "${validOutput}" ${fileList}`);
+        break;
+      }
+      default:
+        throw new Error(`Unsupported format: ${format}`);
+    }
+
+    return `Successfully created archive: ${outputPath}`;
+  } catch (error) {
+    // コマンドが利用できない場合は、Node.jsの組み込み機能を使用
+    if (format === "tar.gz") {
+      // tar.gzの代替実装（単一ファイルのgzip圧縮のみ）
+      if (validFiles.length === 1) {
+        const input = createReadStream(validFiles[0]);
+        const output = createWriteStream(validOutput);
+        const gzip = zlib.createGzip();
+        
+        await pipeline(input, gzip, output);
+        return `Successfully created gzip archive: ${outputPath}`;
+      }
+    }
+    
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    throw new Error(`Compression failed: ${errorMsg}. Make sure required tools (zip/tar) are installed.`);
+  }
+}
+
+async function extractArchive(
+  archivePath: string,
+  destinationPath: string,
+  overwrite: boolean = false
+): Promise<string> {
+  const validArchive = await validatePath(archivePath);
+  const validDest = await validatePath(destinationPath);
+
+  // 宛先ディレクトリの作成
+  await fs.mkdir(validDest, { recursive: true });
+
+  // ファイル拡張子に基づいて解凍方法を決定
+  const ext = path.extname(archivePath).toLowerCase();
+
+  try {
+    switch (ext) {
+      case ".zip": {
+        const overwriteFlag = overwrite ? "-o" : "";
+        await execAsync(`unzip ${overwriteFlag} "${validArchive}" -d "${validDest}"`);
+        break;
+      }
+      case ".tar": {
+        await execAsync(`tar -xf "${validArchive}" -C "${validDest}"`);
+        break;
+      }
+      case ".gz": {
+        if (archivePath.endsWith(".tar.gz")) {
+          await execAsync(`tar -xzf "${validArchive}" -C "${validDest}"`);
+        } else {
+          // 単一ファイルのgzip解凍
+          const baseName = path.basename(archivePath, ".gz");
+          const outputFile = path.join(validDest, baseName);
+          const input = createReadStream(validArchive);
+          const output = createWriteStream(outputFile);
+          const gunzip = zlib.createGunzip();
+          
+          await pipeline(input, gunzip, output);
+        }
+        break;
+      }
+      default:
+        throw new Error(`Unsupported archive format: ${ext}`);
+    }
+
+    return `Successfully extracted archive to: ${destinationPath}`;
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    throw new Error(`Extraction failed: ${errorMsg}. Make sure required tools (unzip/tar) are installed.`);
+  }
+}
+
 // file editing and diffing utilities
 function normalizeLineEndings(text: string): string {
   return text.replace(/\r\n/g, "\n");
@@ -294,7 +726,7 @@ function createUnifiedDiff(
 
 async function applyFileEdits(
   filePath: string,
-  edits: Array<{ oldText: string; newText: string }>,
+  edits: EditOperationType[],
   dryRun = false,
 ): Promise<string> {
   // Read file content and normalize line endings
@@ -302,54 +734,111 @@ async function applyFileEdits(
 
   // Apply edits sequentially
   let modifiedContent = content;
+  
   for (const edit of edits) {
-    const normalizedOld = normalizeLineEndings(edit.oldText);
-    const normalizedNew = normalizeLineEndings(edit.newText);
+    // 各編集タイプに応じた処理
+    if (edit.type === "replace" || !edit.type) {
+      // 既存のテキスト置換処理
+      const normalizedOld = normalizeLineEndings(edit.oldText);
+      const normalizedNew = normalizeLineEndings(edit.newText);
 
-    // If exact match exists, use it
-    if (modifiedContent.includes(normalizedOld)) {
-      modifiedContent = modifiedContent.replace(normalizedOld, normalizedNew);
-      continue;
-    }
+      // If exact match exists, use it
+      if (modifiedContent.includes(normalizedOld)) {
+        modifiedContent = modifiedContent.replace(normalizedOld, normalizedNew);
+        continue;
+      }
 
-    // Otherwise, try line-by-line matching with flexibility for whitespace
-    const oldLines = normalizedOld.split("\n");
-    const contentLines = modifiedContent.split("\n");
-    let matchFound = false;
+      // Otherwise, try line-by-line matching with flexibility for whitespace
+      const oldLines = normalizedOld.split("\n");
+      const contentLines = modifiedContent.split("\n");
+      let matchFound = false;
 
-    for (let i = 0; i <= contentLines.length - oldLines.length; i++) {
-      const potentialMatch = contentLines.slice(i, i + oldLines.length);
+      for (let i = 0; i <= contentLines.length - oldLines.length; i++) {
+        const potentialMatch = contentLines.slice(i, i + oldLines.length);
 
-      // Compare lines with normalized whitespace
-      const isMatch = oldLines.every((oldLine, j) => {
-        const contentLine = potentialMatch[j];
-        return contentLine !== undefined && oldLine.trim() === contentLine.trim();
-      });
-
-      if (isMatch) {
-        // Preserve original indentation of first line
-        const originalIndent = contentLines[i]?.match(/^\s*/)?.[0] || "";
-        const newLines = normalizedNew.split("\n").map((line, j) => {
-          if (j === 0) return originalIndent + line.trimStart();
-          // For subsequent lines, try to preserve relative indentation
-          const oldIndent = oldLines[j]?.match(/^\s*/)?.[0] || "";
-          const newIndent = line.match(/^\s*/)?.[0] || "";
-          if (oldIndent && newIndent) {
-            const relativeIndent = newIndent.length - oldIndent.length;
-            return originalIndent + " ".repeat(Math.max(0, relativeIndent)) + line.trimStart();
-          }
-          return line;
+        // Compare lines with normalized whitespace
+        const isMatch = oldLines.every((oldLine, j) => {
+          const contentLine = potentialMatch[j];
+          return contentLine !== undefined && oldLine.trim() === contentLine.trim();
         });
 
-        contentLines.splice(i, oldLines.length, ...newLines);
-        modifiedContent = contentLines.join("\n");
-        matchFound = true;
-        break;
-      }
-    }
+        if (isMatch) {
+          // Preserve original indentation of first line
+          const originalIndent = contentLines[i]?.match(/^\s*/)?.[0] || "";
+          const newLines = normalizedNew.split("\n").map((line, j) => {
+            if (j === 0) return originalIndent + line.trimStart();
+            // For subsequent lines, try to preserve relative indentation
+            const oldIndent = oldLines[j]?.match(/^\s*/)?.[0] || "";
+            const newIndent = line.match(/^\s*/)?.[0] || "";
+            if (oldIndent && newIndent) {
+              const relativeIndent = newIndent.length - oldIndent.length;
+              return originalIndent + " ".repeat(Math.max(0, relativeIndent)) + line.trimStart();
+            }
+            return line;
+          });
 
-    if (!matchFound) {
-      throw new Error(`Could not find exact match for edit:\n${edit.oldText}`);
+          contentLines.splice(i, oldLines.length, ...newLines);
+          modifiedContent = contentLines.join("\n");
+          matchFound = true;
+          break;
+        }
+      }
+
+      if (!matchFound) {
+        throw new Error(`Could not find exact match for edit:\n${edit.oldText}`);
+      }
+      
+    } else if (edit.type === "line") {
+      // 行番号ベースの編集
+      const lines = modifiedContent.split("\n");
+      const lineIndex = edit.lineNumber - 1; // 0-based index
+      
+      if (lineIndex < 0 || lineIndex > lines.length) {
+        throw new Error(`Line number ${edit.lineNumber} is out of range (1-${lines.length})`);
+      }
+      
+      switch (edit.action) {
+        case "replace":
+          if (edit.content === undefined) {
+            throw new Error("Content is required for replace action");
+          }
+          if (lineIndex >= lines.length) {
+            throw new Error(`Cannot replace line ${edit.lineNumber}: file has only ${lines.length} lines`);
+          }
+          lines[lineIndex] = edit.content;
+          break;
+          
+        case "insert":
+          if (edit.content === undefined) {
+            throw new Error("Content is required for insert action");
+          }
+          // insertは指定行の前に挿入
+          lines.splice(lineIndex, 0, edit.content);
+          break;
+          
+        case "delete":
+          if (lineIndex >= lines.length) {
+            throw new Error(`Cannot delete line ${edit.lineNumber}: file has only ${lines.length} lines`);
+          }
+          lines.splice(lineIndex, 1);
+          break;
+          
+        default:
+          throw new Error(`Unknown line action: ${edit.action}`);
+      }
+      
+      modifiedContent = lines.join("\n");
+      
+    } else if (edit.type === "regex") {
+      // 正規表現による置換
+      try {
+        const regex = new RegExp(edit.pattern, edit.flags || "g");
+        modifiedContent = modifiedContent.replace(regex, edit.replacement);
+      } catch (error) {
+        throw new Error(`Invalid regex pattern: ${edit.pattern}. Error: ${error}`);
+      }
+    } else {
+      throw new Error(`Unknown edit type: ${(edit as any).type}`);
     }
   }
 
@@ -465,6 +954,15 @@ async function searchContent(
   return results;
 }
 
+// MCPアノテーションの型定義
+interface ToolAnnotations {
+  title?: string;
+  readOnlyHint?: boolean;
+  idempotentHint?: boolean;
+  openWorldHint?: boolean;
+  costHint?: "low" | "medium" | "high";
+}
+
 // Tool handlers
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
@@ -472,62 +970,132 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "read_file",
         description:
-          "Read file contents with proper encoding. Returns detailed errors if read fails. Only works within allowed directories.",
+          "Read file contents with proper encoding. Supports partial reading by byte range or line range. Encoding options: utf-8, base64, hex. Only works within allowed directories.",
         inputSchema: zodToJsonSchema(ReadFileArgsSchema) as ToolInput,
+        annotations: {
+          title: "ファイル読み取り",
+          readOnlyHint: true,
+          idempotentHint: true,
+          openWorldHint: false,
+          costHint: "low"
+        } as ToolAnnotations,
       },
       {
         name: "read_multiple_files",
         description:
           "Read multiple files simultaneously. More efficient than reading one by one. Returns each file's content with its path. Failed reads don't stop the operation. Only works within allowed directories.",
         inputSchema: zodToJsonSchema(ReadMultipleFilesArgsSchema) as ToolInput,
+        annotations: {
+          title: "複数ファイル読み取り",
+          readOnlyHint: true,
+          idempotentHint: true,
+          openWorldHint: false,
+          costHint: "low"
+        } as ToolAnnotations,
       },
       {
         name: "write_file",
         description:
           "Create or overwrite a file. Caution: overwrites without warning. Handles text encoding. Only works within allowed directories.",
         inputSchema: zodToJsonSchema(WriteFileArgsSchema) as ToolInput,
+        annotations: {
+          title: "ファイル書き込み",
+          readOnlyHint: false,
+          idempotentHint: false,
+          openWorldHint: false,
+          costHint: "low"
+        } as ToolAnnotations,
       },
       {
         name: "edit_file",
         description:
-          "Make line-based edits to text files. Replaces exact line sequences. Returns git-style diff. Only works within allowed directories.",
+          "Make edits to text files. Supports text replacement, line-based operations (replace/insert/delete), and regex replacements. Returns git-style diff. Only works within allowed directories.",
         inputSchema: zodToJsonSchema(EditFileArgsSchema) as ToolInput,
+        annotations: {
+          title: "ファイル編集",
+          readOnlyHint: false,
+          idempotentHint: false,
+          openWorldHint: false,
+          costHint: "low"
+        } as ToolAnnotations,
       },
       {
         name: "create_directory",
         description:
           "Create directory or ensure it exists. Creates nested directories. Succeeds silently if already exists. Only works within allowed directories.",
         inputSchema: zodToJsonSchema(CreateDirectoryArgsSchema) as ToolInput,
+        annotations: {
+          title: "ディレクトリ作成",
+          readOnlyHint: false,
+          idempotentHint: true,
+          openWorldHint: false,
+          costHint: "low"
+        } as ToolAnnotations,
       },
       {
         name: "list_directory",
         description:
           "List files and directories in a path. Distinguished with [FILE] and [DIR] prefixes. Only works within allowed directories.",
         inputSchema: zodToJsonSchema(ListDirectoryArgsSchema) as ToolInput,
+        annotations: {
+          title: "ディレクトリ一覧",
+          readOnlyHint: true,
+          idempotentHint: true,
+          openWorldHint: false,
+          costHint: "low"
+        } as ToolAnnotations,
       },
       {
         name: "directory_tree",
         description:
           "Get recursive tree view as JSON. Each entry has name, type (file/directory), and children for directories. 2-space indented output. Only works within allowed directories.",
         inputSchema: zodToJsonSchema(DirectoryTreeArgsSchema) as ToolInput,
+        annotations: {
+          title: "ディレクトリツリー",
+          readOnlyHint: true,
+          idempotentHint: true,
+          openWorldHint: false,
+          costHint: "medium"
+        } as ToolAnnotations,
       },
       {
         name: "move_file",
         description:
           "Move or rename files and directories. Fails if destination exists. Both paths must be within allowed directories.",
         inputSchema: zodToJsonSchema(MoveFileArgsSchema) as ToolInput,
+        annotations: {
+          title: "ファイル移動",
+          readOnlyHint: false,
+          idempotentHint: false,
+          openWorldHint: false,
+          costHint: "low"
+        } as ToolAnnotations,
       },
       {
         name: "search_files",
         description:
           "Recursively search files matching a pattern. Case-insensitive, partial name matching. Returns full paths. Only searches within allowed directories.",
         inputSchema: zodToJsonSchema(SearchFilesArgsSchema) as ToolInput,
+        annotations: {
+          title: "ファイル検索",
+          readOnlyHint: true,
+          idempotentHint: true,
+          openWorldHint: false,
+          costHint: "medium"
+        } as ToolAnnotations,
       },
       {
         name: "get_file_info",
         description:
           "Get file/directory metadata: size, creation time, modified time, permissions, type. Only works within allowed directories.",
         inputSchema: zodToJsonSchema(GetFileInfoArgsSchema) as ToolInput,
+        annotations: {
+          title: "ファイル情報取得",
+          readOnlyHint: true,
+          idempotentHint: true,
+          openWorldHint: false,
+          costHint: "low"
+        } as ToolAnnotations,
       },
       {
         name: "list_allowed_directories",
@@ -537,6 +1105,13 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           properties: {},
           required: [],
         },
+        annotations: {
+          title: "許可ディレクトリ一覧",
+          readOnlyHint: true,
+          idempotentHint: true,
+          openWorldHint: false,
+          costHint: "low"
+        } as ToolAnnotations,
       },
       // Phase 1: 新規ツール
       {
@@ -544,24 +1119,105 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         description:
           "Delete a file. This operation cannot be undone. Only works within allowed directories.",
         inputSchema: zodToJsonSchema(DeleteFileArgsSchema) as ToolInput,
+        annotations: {
+          title: "ファイル削除",
+          readOnlyHint: false,
+          idempotentHint: true,
+          openWorldHint: false,
+          costHint: "low"
+        } as ToolAnnotations,
       },
       {
         name: "copy_file",
         description:
           "Copy a file to a new location. Fails if destination exists unless overwrite is true. Both paths must be within allowed directories.",
         inputSchema: zodToJsonSchema(CopyFileArgsSchema) as ToolInput,
+        annotations: {
+          title: "ファイルコピー",
+          readOnlyHint: false,
+          idempotentHint: false,
+          openWorldHint: false,
+          costHint: "low"
+        } as ToolAnnotations,
       },
       {
         name: "append_file",
         description:
           "Append content to the end of a file. Creates the file if it doesn't exist. Only works within allowed directories.",
         inputSchema: zodToJsonSchema(AppendFileArgsSchema) as ToolInput,
+        annotations: {
+          title: "ファイル追記",
+          readOnlyHint: false,
+          idempotentHint: false,
+          openWorldHint: false,
+          costHint: "low"
+        } as ToolAnnotations,
       },
       {
         name: "search_content",
         description:
           "Search for content within files. Supports plain text and regex search. Returns matching lines with file path and line number. Only searches within allowed directories.",
         inputSchema: zodToJsonSchema(SearchContentArgsSchema) as ToolInput,
+        annotations: {
+          title: "ファイル内容検索",
+          readOnlyHint: true,
+          idempotentHint: true,
+          openWorldHint: false,
+          costHint: "medium"
+        } as ToolAnnotations,
+      },
+      // Phase 3: 新規ツール
+      {
+        name: "batch_operations",
+        description:
+          "Execute multiple file operations efficiently. Supports transactional mode (rollback on error) and parallel execution for read operations. Each operation result is returned individually.",
+        inputSchema: zodToJsonSchema(BatchOperationsArgsSchema) as ToolInput,
+        annotations: {
+          title: "バッチ操作",
+          readOnlyHint: false,
+          idempotentHint: false,
+          openWorldHint: false,
+          costHint: "medium"
+        } as ToolAnnotations,
+      },
+      {
+        name: "watch_file",
+        description:
+          "Check for file changes since a specific time. Due to MCP constraints, this is a one-time check, not continuous monitoring. Returns list of changed files.",
+        inputSchema: zodToJsonSchema(WatchFileArgsSchema) as ToolInput,
+        annotations: {
+          title: "ファイル変更チェック",
+          readOnlyHint: true,
+          idempotentHint: false,
+          openWorldHint: false,
+          costHint: "low"
+        } as ToolAnnotations,
+      },
+      {
+        name: "compress_files",
+        description:
+          "Compress files into an archive. Supports zip, tar, and tar.gz formats. Requires appropriate tools (zip/tar) to be installed on the system.",
+        inputSchema: zodToJsonSchema(CompressFilesArgsSchema) as ToolInput,
+        annotations: {
+          title: "ファイル圧縮",
+          readOnlyHint: false,
+          idempotentHint: false,
+          openWorldHint: false,
+          costHint: "medium"
+        } as ToolAnnotations,
+      },
+      {
+        name: "extract_archive",
+        description:
+          "Extract files from an archive. Supports zip, tar, and tar.gz formats. Creates destination directory if it doesn't exist. Requires appropriate tools (unzip/tar) to be installed.",
+        inputSchema: zodToJsonSchema(ExtractArchiveArgsSchema) as ToolInput,
+        annotations: {
+          title: "アーカイブ解凍",
+          readOnlyHint: false,
+          idempotentHint: false,
+          openWorldHint: false,
+          costHint: "medium"
+        } as ToolAnnotations,
       },
     ],
   };
@@ -578,7 +1234,43 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new Error(`Invalid arguments for read_file: ${parsed.error}`);
         }
         const validPath = await validatePath(parsed.data.path);
-        const content = await fs.readFile(validPath, "utf-8");
+        
+        // エンコーディングに応じた読み込み
+        let content: string;
+        if (parsed.data.encoding === "base64" || parsed.data.encoding === "hex") {
+          const buffer = await fs.readFile(validPath);
+          content = buffer.toString(parsed.data.encoding);
+        } else {
+          content = await fs.readFile(validPath, "utf-8");
+        }
+        
+        // 範囲指定がある場合の処理
+        if (parsed.data.range) {
+          if (parsed.data.range.lines) {
+            // 行範囲指定
+            const lines = content.split("\n");
+            const { from, to } = parsed.data.range.lines;
+            
+            if (from < 1 || to < from || from > lines.length) {
+              throw new Error(`Invalid line range: ${from}-${to} (file has ${lines.length} lines)`);
+            }
+            
+            const selectedLines = lines.slice(from - 1, Math.min(to, lines.length));
+            content = selectedLines.join("\n");
+            
+          } else if (parsed.data.range.start !== undefined || parsed.data.range.end !== undefined) {
+            // バイト範囲指定
+            const start = parsed.data.range.start || 0;
+            const end = parsed.data.range.end || content.length;
+            
+            if (start < 0 || end < start || start > content.length) {
+              throw new Error(`Invalid byte range: ${start}-${end} (content length: ${content.length})`);
+            }
+            
+            content = content.slice(start, end);
+          }
+        }
+        
         return {
           content: [{ type: "text", text: content }],
         };
@@ -859,6 +1551,98 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           
         return {
           content: [{ type: "text", text: formatted }],
+        };
+      }
+
+      // Phase 3: 新規ツールのハンドラー
+      case "batch_operations": {
+        const parsed = BatchOperationsArgsSchema.safeParse(args);
+        if (!parsed.success) {
+          throw new Error(`Invalid arguments for batch_operations: ${parsed.error}`);
+        }
+        
+        const results = await executeBatchOperations(
+          parsed.data.operations,
+          {
+            parallel: parsed.data.parallel,
+            transactional: parsed.data.transactional,
+          }
+        );
+        
+        // 結果をフォーマット
+        const formatted = results.map((r, i) => {
+          const status = r.success ? "✓" : "✗";
+          const detail = r.success ? r.result : `Error: ${r.error}`;
+          return `[${i + 1}] ${status} ${r.operation.type}: ${detail}`;
+        }).join('\n');
+        
+        return {
+          content: [{ type: "text", text: formatted }],
+        };
+      }
+
+      case "watch_file": {
+        const parsed = WatchFileArgsSchema.safeParse(args);
+        if (!parsed.success) {
+          throw new Error(`Invalid arguments for watch_file: ${parsed.error}`);
+        }
+        
+        const changes = await checkFileChanges(parsed.data.path, {
+          events: parsed.data.events,
+          recursive: parsed.data.recursive,
+          since: parsed.data.since,
+        });
+        
+        if (changes.length === 0) {
+          return {
+            content: [{ type: "text", text: "No changes detected" }],
+          };
+        }
+        
+        const formatted = changes.map(c => {
+          let detail = `${c.type}: ${c.path}`;
+          if (c.newStats) {
+            detail += ` (modified: ${c.newStats.modified.toISOString()})`;
+          }
+          return detail;
+        }).join('\n');
+        
+        return {
+          content: [{ type: "text", text: formatted }],
+        };
+      }
+
+      case "compress_files": {
+        const parsed = CompressFilesArgsSchema.safeParse(args);
+        if (!parsed.success) {
+          throw new Error(`Invalid arguments for compress_files: ${parsed.error}`);
+        }
+        
+        const result = await compressFiles(
+          parsed.data.files,
+          parsed.data.output,
+          parsed.data.format
+        );
+        
+        return {
+          content: [{ type: "text", text: result }],
+        };
+      }
+
+      case "extract_archive": {
+        const parsed = ExtractArchiveArgsSchema.safeParse(args);
+        if (!parsed.success) {
+          throw new Error(`Invalid arguments for extract_archive: ${parsed.error}`);
+        }
+        
+        const result = await extractArchive(
+          parsed.data.archive,
+          parsed.data.destination,
+          parsed.data.overwrite
+        );
+        
+        return {
+          content: [{ type: "text", text: result }],
         };
       }
 
