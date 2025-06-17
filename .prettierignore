@@ -1,0 +1,53 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# Coverage
+coverage/
+.nyc_output/
+
+# Logs
+logs/
+*.log
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Environment files
+.env
+.env.*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Package files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+bun.lockb
+
+# Temporary files
+.cache/
+.temp/
+tmp/
+
+# Generated files
+*.generated.*
+
+# Specific files to ignore
+# Add any specific files that should not be formatted
