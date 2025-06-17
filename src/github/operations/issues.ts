@@ -2,9 +2,9 @@
  * Issueの作成、読み取り、管理を行うGitHubIssue操作。
  */
 
-import { z } from 'zod';
-import { githubRequest, buildUrl } from '../common/utils';
-import { GitHubIssueSchema } from '../common/types';
+import { z } from "zod";
+import { githubRequest, buildUrl } from "../common/utils";
+import { GitHubIssueSchema } from "../common/types";
 
 // Issueスキーマの定義
 export const CreateIssueSchema = z.object({
@@ -59,7 +59,7 @@ export const IssueCommentSchema = z.object({
 export async function createIssue(
   owner: string,
   repo: string,
-  options: Omit<z.infer<typeof CreateIssueSchema>, "owner" | "repo">
+  options: Omit<z.infer<typeof CreateIssueSchema>, "owner" | "repo">,
 ) {
   const url = `https://api.github.com/repos/${owner}/${repo}/issues`;
   const response = await githubRequest(url, {
@@ -73,11 +73,7 @@ export async function createIssue(
 /**
  * GitHubリポジトリの特定のIssueの詳細を取得
  */
-export async function getIssue(
-  owner: string,
-  repo: string,
-  issue_number: number
-) {
+export async function getIssue(owner: string, repo: string, issue_number: number) {
   const url = `https://api.github.com/repos/${owner}/${repo}/issues/${issue_number}`;
   const response = await githubRequest(url);
 
@@ -97,7 +93,7 @@ export async function listIssues(
     page: number;
     per_page: number;
     account_profile?: string;
-  }
+  },
 ) {
   // デフォルト値を設定して未定義のパラメータに対応
   const params = {
@@ -105,9 +101,9 @@ export async function listIssues(
     sort: options.sort,
     direction: options.direction,
     page: options.page,
-    per_page: options.per_page
+    per_page: options.per_page,
   };
-  
+
   const url = buildUrl(`https://api.github.com/repos/${owner}/${repo}/issues`, params);
 
   const response = await githubRequest(url);
@@ -121,7 +117,7 @@ export async function updateIssue(
   owner: string,
   repo: string,
   issue_number: number,
-  options: Omit<z.infer<typeof UpdateIssueOptionsSchema>, "owner" | "repo" | "issue_number">
+  options: Omit<z.infer<typeof UpdateIssueOptionsSchema>, "owner" | "repo" | "issue_number">,
 ) {
   const url = `https://api.github.com/repos/${owner}/${repo}/issues/${issue_number}`;
   const response = await githubRequest(url, {
@@ -139,7 +135,7 @@ export async function addIssueComment(
   owner: string,
   repo: string,
   issue_number: number,
-  body: string
+  body: string,
 ) {
   const url = `https://api.github.com/repos/${owner}/${repo}/issues/${issue_number}/comments`;
   const response = await githubRequest(url, {

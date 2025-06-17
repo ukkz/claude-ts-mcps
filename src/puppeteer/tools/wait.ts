@@ -12,8 +12,14 @@ export const waitTools: Tool[] = [
       type: "object",
       properties: {
         selector: { type: "string", description: "CSS selector to wait for" },
-        timeout: { type: "number", description: "Maximum time to wait in milliseconds (default: 30000)" },
-        visible: { type: "boolean", description: "Wait for element to be visible (default: false)" },
+        timeout: {
+          type: "number",
+          description: "Maximum time to wait in milliseconds (default: 30000)",
+        },
+        visible: {
+          type: "boolean",
+          description: "Wait for element to be visible (default: false)",
+        },
       },
       required: ["selector"],
     },
@@ -35,8 +41,14 @@ export const waitTools: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        pageFunction: { type: "string", description: "JavaScript function to evaluate in browser context" },
-        timeout: { type: "number", description: "Maximum time to wait in milliseconds (default: 30000)" },
+        pageFunction: {
+          type: "string",
+          description: "JavaScript function to evaluate in browser context",
+        },
+        timeout: {
+          type: "number",
+          description: "Maximum time to wait in milliseconds (default: 30000)",
+        },
         polling: { type: "number", description: "Polling interval in milliseconds" },
       },
       required: ["pageFunction"],
@@ -48,12 +60,16 @@ export const waitTools: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        waitUntil: { 
-          type: "string", 
-          description: "When to consider navigation succeeded ('load', 'domcontentloaded', 'networkidle0', 'networkidle2')",
-          enum: ["load", "domcontentloaded", "networkidle0", "networkidle2"]
+        waitUntil: {
+          type: "string",
+          description:
+            "When to consider navigation succeeded ('load', 'domcontentloaded', 'networkidle0', 'networkidle2')",
+          enum: ["load", "domcontentloaded", "networkidle0", "networkidle2"],
         },
-        timeout: { type: "number", description: "Maximum time to wait in milliseconds (default: 30000)" },
+        timeout: {
+          type: "number",
+          description: "Maximum time to wait in milliseconds (default: 30000)",
+        },
       },
     },
   },

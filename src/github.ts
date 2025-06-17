@@ -6,7 +6,7 @@
  * このファイルは、GitHub APIを介してファイル操作、リポジトリ管理、
  * 検索機能、Issue、プルリクエストなどの操作を可能にする
  * Model Context Protocol (MCP) サーバーを実装しています。
- * 
+ *
  * 主な機能:
  * - ファイルの作成・更新
  * - リポジトリの検索・作成
@@ -18,27 +18,24 @@
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-} from "@modelcontextprotocol/sdk/types.js";
-import { z } from 'zod';
+import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+import { z } from "zod";
 
 // Import shared utilities and types
-import { formatGitHubError, isGitHubError } from './github/common/errors';
-import { VERSION } from './github/common/utils';
-import * as interfaces from './github/common/interfaces';
+import { formatGitHubError, isGitHubError } from "./github/common/errors";
+import { VERSION } from "./github/common/utils";
+import * as interfaces from "./github/common/interfaces";
 
 // Import operation modules
-import * as files from './github/operations/files';
-import * as repository from './github/operations/repository';
-import * as branches from './github/operations/branches';
-import * as issues from './github/operations/issues';
-import * as pulls from './github/operations/pulls';
-import * as search from './github/operations/search';
+import * as files from "./github/operations/files";
+import * as repository from "./github/operations/repository";
+import * as branches from "./github/operations/branches";
+import * as issues from "./github/operations/issues";
+import * as pulls from "./github/operations/pulls";
+import * as search from "./github/operations/search";
 
 // Import tool definitions
-import { GITHUB_TOOLS } from './github/tools/definitions';
+import { GITHUB_TOOLS } from "./github/tools/definitions";
 
 // 共通ヘルパー関数
 
@@ -61,7 +58,7 @@ function applyIssueListDefaults(options: Partial<interfaces.ListIssuesArguments>
     direction: options.direction || "desc",
     page: options.page || 1,
     per_page: options.per_page || 30,
-    account_profile: options.account_profile
+    account_profile: options.account_profile,
   };
 }
 
@@ -75,7 +72,7 @@ function applyPullListDefaults(options: Partial<interfaces.ListPullRequestsArgum
     direction: options.direction || "desc",
     page: options.page || 1,
     per_page: options.per_page || 30,
-    account_profile: options.account_profile
+    account_profile: options.account_profile,
   };
 }
 
@@ -86,7 +83,7 @@ function applyMergeDefaults(options: Partial<interfaces.MergePullRequestArgument
   return {
     commit_title: options.commit_title,
     commit_message: options.commit_message,
-    merge_method: options.merge_method || "merge"
+    merge_method: options.merge_method || "merge",
   };
 }
 const server = new Server(
@@ -98,7 +95,7 @@ const server = new Server(
     capabilities: {
       tools: {},
     },
-  }
+  },
 );
 
 // Register available tools
@@ -117,47 +114,53 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     switch (request.params.name) {
       case "create_branch": {
-        const args = branches.CreateBranchSchema.parse(request.params.arguments) as interfaces.CreateBranchArguments;
+        const args = branches.CreateBranchSchema.parse(
+          request.params.arguments,
+        ) as interfaces.CreateBranchArguments;
         const branch = await branches.createBranchFromRef(
           args.owner,
           args.repo,
           args.branch,
           args.from_branch,
-          args.account_profile
+          args.account_profile,
         );
         return createJsonResponse(branch);
       }
 
       case "search_repositories": {
-        const args = repository.SearchRepositoriesSchema.parse(request.params.arguments) as interfaces.SearchRepositoriesArguments;
-        const results = await repository.searchRepositories(
-          args.query,
-          args.page,
-          args.perPage
-        );
+        const args = repository.SearchRepositoriesSchema.parse(
+          request.params.arguments,
+        ) as interfaces.SearchRepositoriesArguments;
+        const results = await repository.searchRepositories(args.query, args.page, args.perPage);
         return createJsonResponse(results);
       }
 
       case "create_repository": {
-        const args = repository.CreateRepositoryOptionsSchema.parse(request.params.arguments) as interfaces.CreateRepositoryArguments;
+        const args = repository.CreateRepositoryOptionsSchema.parse(
+          request.params.arguments,
+        ) as interfaces.CreateRepositoryArguments;
         const result = await repository.createRepository(args);
         return createJsonResponse(result);
       }
 
       case "get_file_contents": {
-        const args = files.GetFileContentsSchema.parse(request.params.arguments) as interfaces.GetFileContentsArguments;
+        const args = files.GetFileContentsSchema.parse(
+          request.params.arguments,
+        ) as interfaces.GetFileContentsArguments;
         const contents = await files.getFileContents(
           args.owner,
           args.repo,
           args.path,
           args.branch,
-          args.account_profile
+          args.account_profile,
         );
         return createJsonResponse(contents);
       }
 
       case "create_or_update_file": {
-        const args = files.CreateOrUpdateFileSchema.parse(request.params.arguments) as interfaces.CreateOrUpdateFileArguments;
+        const args = files.CreateOrUpdateFileSchema.parse(
+          request.params.arguments,
+        ) as interfaces.CreateOrUpdateFileArguments;
         const result = await files.createOrUpdateFile(
           args.owner,
           args.repo,
@@ -166,39 +169,47 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           args.message,
           args.branch,
           args.sha,
-          args.account_profile
+          args.account_profile,
         );
         return createJsonResponse(result);
       }
 
       case "push_files": {
-        const args = files.PushFilesSchema.parse(request.params.arguments) as interfaces.PushFilesArguments;
+        const args = files.PushFilesSchema.parse(
+          request.params.arguments,
+        ) as interfaces.PushFilesArguments;
         const result = await files.pushFiles(
           args.owner,
           args.repo,
           args.branch,
           args.files,
           args.message,
-          args.account_profile
+          args.account_profile,
         );
         return createJsonResponse(result);
       }
 
       case "create_issue": {
-        const args = issues.CreateIssueSchema.parse(request.params.arguments) as interfaces.CreateIssueArguments;
+        const args = issues.CreateIssueSchema.parse(
+          request.params.arguments,
+        ) as interfaces.CreateIssueArguments;
         const { owner, repo, ...options } = args;
         const issue = await issues.createIssue(owner, repo, options);
         return createJsonResponse(issue);
       }
 
       case "get_issue": {
-        const args = issues.GetIssueSchema.parse(request.params.arguments) as interfaces.GetIssueArguments;
+        const args = issues.GetIssueSchema.parse(
+          request.params.arguments,
+        ) as interfaces.GetIssueArguments;
         const issue = await issues.getIssue(args.owner, args.repo, args.issue_number);
         return createJsonResponse(issue);
       }
 
       case "list_issues": {
-        const args = issues.ListIssuesOptionsSchema.parse(request.params.arguments) as interfaces.ListIssuesArguments;
+        const args = issues.ListIssuesOptionsSchema.parse(
+          request.params.arguments,
+        ) as interfaces.ListIssuesArguments;
         const { owner, repo, ...options } = args;
         const issuesOptions = applyIssueListDefaults(options);
         const issuesList = await issues.listIssues(owner, repo, issuesOptions);
@@ -206,33 +217,43 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "update_issue": {
-        const args = issues.UpdateIssueOptionsSchema.parse(request.params.arguments) as interfaces.UpdateIssueArguments;
+        const args = issues.UpdateIssueOptionsSchema.parse(
+          request.params.arguments,
+        ) as interfaces.UpdateIssueArguments;
         const { owner, repo, issue_number, ...options } = args;
         const issue = await issues.updateIssue(owner, repo, issue_number, options);
         return createJsonResponse(issue);
       }
 
       case "add_issue_comment": {
-        const args = issues.IssueCommentSchema.parse(request.params.arguments) as interfaces.IssueCommentArguments;
+        const args = issues.IssueCommentSchema.parse(
+          request.params.arguments,
+        ) as interfaces.IssueCommentArguments;
         const { owner, repo, issue_number, body } = args;
         const result = await issues.addIssueComment(owner, repo, issue_number, body);
         return createJsonResponse(result);
       }
 
       case "create_pull_request": {
-        const args = pulls.CreatePullRequestSchema.parse(request.params.arguments) as interfaces.CreatePullRequestArguments;
+        const args = pulls.CreatePullRequestSchema.parse(
+          request.params.arguments,
+        ) as interfaces.CreatePullRequestArguments;
         const pullRequest = await pulls.createPullRequest(args);
         return createJsonResponse(pullRequest);
       }
 
       case "get_pull_request": {
-        const args = pulls.GetPullRequestSchema.parse(request.params.arguments) as interfaces.GetPullRequestArguments;
+        const args = pulls.GetPullRequestSchema.parse(
+          request.params.arguments,
+        ) as interfaces.GetPullRequestArguments;
         const pullRequest = await pulls.getPullRequest(args.owner, args.repo, args.pull_number);
         return createJsonResponse(pullRequest);
       }
 
       case "list_pull_requests": {
-        const args = pulls.ListPullRequestsSchema.parse(request.params.arguments) as interfaces.ListPullRequestsArguments;
+        const args = pulls.ListPullRequestsSchema.parse(
+          request.params.arguments,
+        ) as interfaces.ListPullRequestsArguments;
         const { owner, repo, ...options } = args;
         const pullOptions = applyPullListDefaults(options);
         const pullRequests = await pulls.listPullRequests(owner, repo, pullOptions);
@@ -240,7 +261,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "merge_pull_request": {
-        const args = pulls.MergePullRequestSchema.parse(request.params.arguments) as interfaces.MergePullRequestArguments;
+        const args = pulls.MergePullRequestSchema.parse(
+          request.params.arguments,
+        ) as interfaces.MergePullRequestArguments;
         const { owner, repo, pull_number, ...options } = args;
         const mergeOptions = applyMergeDefaults(options);
         const result = await pulls.mergePullRequest(owner, repo, pull_number, mergeOptions);
@@ -248,19 +271,25 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "search_code": {
-        const args = search.SearchCodeSchema.parse(request.params.arguments) as interfaces.SearchCodeArguments;
+        const args = search.SearchCodeSchema.parse(
+          request.params.arguments,
+        ) as interfaces.SearchCodeArguments;
         const results = await search.searchCode(args);
         return createJsonResponse(results);
       }
 
       case "search_issues": {
-        const args = search.SearchIssuesSchema.parse(request.params.arguments) as interfaces.SearchIssuesArguments;
+        const args = search.SearchIssuesSchema.parse(
+          request.params.arguments,
+        ) as interfaces.SearchIssuesArguments;
         const results = await search.searchIssues(args);
         return createJsonResponse(results);
       }
 
       case "search_users": {
-        const args = search.SearchUsersSchema.parse(request.params.arguments) as interfaces.SearchUsersArguments;
+        const args = search.SearchUsersSchema.parse(
+          request.params.arguments,
+        ) as interfaces.SearchUsersArguments;
         const results = await search.searchUsers(args);
         return createJsonResponse(results);
       }

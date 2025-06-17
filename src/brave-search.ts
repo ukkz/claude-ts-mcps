@@ -3,13 +3,9 @@
  * このサーバーは、ウェブ検索とローカル検索の2つの機能を提供します
  */
 
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
-import { z } from "zod"
-
-
-
-
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { z } from "zod";
 
 /**
  * MCPサーバーの初期化
@@ -18,16 +14,16 @@ import { z } from "zod"
 const server = new McpServer({
   name: "brave-search",
   version: "0.1.0",
-})
+});
 
 /**
  * APIキーの確認
  * 環境変数からBrave APIキーを取得し、存在しない場合はエラーを表示して終了します
  */
-const BRAVE_API_KEY = process.env.BRAVE_API_KEY!
+const BRAVE_API_KEY = process.env.BRAVE_API_KEY!;
 if (!BRAVE_API_KEY) {
-  console.error("Error: BRAVE_API_KEY environment variable is required")
-  process.exit(1)
+  console.error("Error: BRAVE_API_KEY environment variable is required");
+  process.exit(1);
 }
 
 /**
@@ -36,8 +32,8 @@ if (!BRAVE_API_KEY) {
  */
 const RATE_LIMIT = {
   perSecond: 1,
-  perMonth: 15000
-}
+  perMonth: 15000,
+};
 
 /**
  * リクエストカウンターの初期化
@@ -46,25 +42,24 @@ const RATE_LIMIT = {
 let requestCount = {
   second: 0,
   month: 0,
-  lastReset: Date.now()
-}
+  lastReset: Date.now(),
+};
 
 /**
  * レート制限をチェックする関数
  * 現在のリクエスト頻度が制限を超えていないか確認し、超えている場合はエラーをスローします
  */
 function checkRateLimit() {
-  const now = Date.now()
+  const now = Date.now();
   if (now - requestCount.lastReset > 1000) {
-    requestCount.second = 0
-    requestCount.lastReset = now
+    requestCount.second = 0;
+    requestCount.lastReset = now;
   }
-  if (requestCount.second >= RATE_LIMIT.perSecond ||
-    requestCount.month >= RATE_LIMIT.perMonth) {
-    throw new Error('Rate limit exceeded')
+  if (requestCount.second >= RATE_LIMIT.perSecond || requestCount.month >= RATE_LIMIT.perMonth) {
+    throw new Error("Rate limit exceeded");
   }
-  requestCount.second++
-  requestCount.month++
+  requestCount.second++;
+  requestCount.month++;
 }
 
 /**
@@ -74,20 +69,20 @@ function checkRateLimit() {
 interface BraveWeb {
   web?: {
     results?: Array<{
-      title: string
-      description: string
-      url: string
-      language?: string
-      published?: string
-      rank?: number
-    }>
-  }
+      title: string;
+      description: string;
+      url: string;
+      language?: string;
+      published?: string;
+      rank?: number;
+    }>;
+  };
   locations?: {
     results?: Array<{
-      id: string // Required by API
-      title?: string
-    }>
-  }
+      id: string; // Required by API
+      title?: string;
+    }>;
+  };
 }
 
 /**
@@ -95,25 +90,25 @@ interface BraveWeb {
  * Braveのローカル検索APIで返される場所の詳細情報の形式を定義します
  */
 interface BraveLocation {
-  id: string
-  name: string
+  id: string;
+  name: string;
   address: {
-    streetAddress?: string
-    addressLocality?: string
-    addressRegion?: string
-    postalCode?: string
-  }
+    streetAddress?: string;
+    addressLocality?: string;
+    addressRegion?: string;
+    postalCode?: string;
+  };
   coordinates?: {
-    latitude: number
-    longitude: number
-  }
-  phone?: string
+    latitude: number;
+    longitude: number;
+  };
+  phone?: string;
   rating?: {
-    ratingValue?: number
-    ratingCount?: number
-  }
-  openingHours?: string[]
-  priceRange?: string
+    ratingValue?: number;
+    ratingCount?: number;
+  };
+  openingHours?: string[];
+  priceRange?: string;
 }
 
 /**
@@ -121,7 +116,7 @@ interface BraveLocation {
  * ローカル検索で返される場所のリスト形式を定義します
  */
 interface BravePoiResponse {
-  results: BraveLocation[]
+  results: BraveLocation[];
 }
 
 /**
@@ -129,7 +124,7 @@ interface BravePoiResponse {
  * 場所IDと説明文の対応を定義します
  */
 interface BraveDescription {
-  descriptions: { [id: string]: string }
+  descriptions: { [id: string]: string };
 }
 
 /**
@@ -142,7 +137,7 @@ function isBraveWebSearchArgs(args: unknown): args is { query: string; count?: n
     args !== null &&
     "query" in args &&
     typeof (args as { query: string }).query === "string"
-  )
+  );
 }
 
 /**
@@ -155,175 +150,193 @@ function isBraveLocalSearchArgs(args: unknown): args is { query: string; count?:
     args !== null &&
     "query" in args &&
     typeof (args as { query: string }).query === "string"
-  )
+  );
 }
 
 /**
  * ウェブ検索を実行する非同期関数
  * BraveのWeb検索APIを呼び出し、結果を整形して返します
- * 
+ *
  * @param query 検索クエリ
  * @param count 取得する結果の数（デフォルト: 10）
  * @param offset ページネーションのオフセット（デフォルト: 0）
  * @returns 整形された検索結果の文字列
  */
 async function performWebSearch(query: string, count: number = 10, offset: number = 0) {
-  checkRateLimit()
-  const url = new URL('https://api.search.brave.com/res/v1/web/search')
-  url.searchParams.set('q', query)
-  url.searchParams.set('count', Math.min(count, 20).toString()) // API limit
-  url.searchParams.set('offset', offset.toString())
+  checkRateLimit();
+  const url = new URL("https://api.search.brave.com/res/v1/web/search");
+  url.searchParams.set("q", query);
+  url.searchParams.set("count", Math.min(count, 20).toString()); // API limit
+  url.searchParams.set("offset", offset.toString());
 
   const response = await fetch(url, {
     headers: {
-      'Accept': 'application/json',
-      'Accept-Encoding': 'gzip',
-      'X-Subscription-Token': BRAVE_API_KEY
-    }
-  })
+      Accept: "application/json",
+      "Accept-Encoding": "gzip",
+      "X-Subscription-Token": BRAVE_API_KEY,
+    },
+  });
 
   if (!response.ok) {
-    throw new Error(`Brave API error: ${response.status} ${response.statusText}\n${await response.text()}`)
+    throw new Error(
+      `Brave API error: ${response.status} ${response.statusText}\n${await response.text()}`,
+    );
   }
 
-  const data = await response.json() as BraveWeb
+  const data = (await response.json()) as BraveWeb;
 
   // ウェブ検索結果のみを抽出
-  const results = (data.web?.results || []).map(result => ({
-    title: result.title || '',
-    description: result.description || '',
-    url: result.url || ''
-  }))
+  const results = (data.web?.results || []).map((result) => ({
+    title: result.title || "",
+    description: result.description || "",
+    url: result.url || "",
+  }));
 
-  return results.map(r =>
-    `Title: ${r.title}\nDescription: ${r.description}\nURL: ${r.url}`
-  ).join('\n\n')
+  return results
+    .map((r) => `Title: ${r.title}\nDescription: ${r.description}\nURL: ${r.url}`)
+    .join("\n\n");
 }
 
 /**
  * ローカル検索を実行する非同期関数
  * BraveのLocal検索APIを呼び出し、結果を整形して返します
  * ローカル結果が見つからない場合はウェブ検索にフォールバックします
- * 
+ *
  * @param query 検索クエリ
  * @param count 取得する結果の数（デフォルト: 5）
  * @returns 整形された検索結果の文字列
  */
 async function performLocalSearch(query: string, count: number = 5) {
-  checkRateLimit()
+  checkRateLimit();
   // 場所IDを取得するための初期検索
-  const webUrl = new URL('https://api.search.brave.com/res/v1/web/search')
-  webUrl.searchParams.set('q', query)
-  webUrl.searchParams.set('search_lang', 'en')
-  webUrl.searchParams.set('result_filter', 'locations')
-  webUrl.searchParams.set('count', Math.min(count, 20).toString())
+  const webUrl = new URL("https://api.search.brave.com/res/v1/web/search");
+  webUrl.searchParams.set("q", query);
+  webUrl.searchParams.set("search_lang", "en");
+  webUrl.searchParams.set("result_filter", "locations");
+  webUrl.searchParams.set("count", Math.min(count, 20).toString());
 
   const webResponse = await fetch(webUrl, {
     headers: {
-      'Accept': 'application/json',
-      'Accept-Encoding': 'gzip',
-      'X-Subscription-Token': BRAVE_API_KEY
-    }
-  })
+      Accept: "application/json",
+      "Accept-Encoding": "gzip",
+      "X-Subscription-Token": BRAVE_API_KEY,
+    },
+  });
 
   if (!webResponse.ok) {
-    throw new Error(`Brave API error: ${webResponse.status} ${webResponse.statusText}\n${await webResponse.text()}`)
+    throw new Error(
+      `Brave API error: ${webResponse.status} ${webResponse.statusText}\n${await webResponse.text()}`,
+    );
   }
 
-  const webData = await webResponse.json() as BraveWeb
-  const locationIds = webData.locations?.results?.filter((r): r is { id: string; title?: string } => r.id != null).map(r => r.id) || []
+  const webData = (await webResponse.json()) as BraveWeb;
+  const locationIds =
+    webData.locations?.results
+      ?.filter((r): r is { id: string; title?: string } => r.id != null)
+      .map((r) => r.id) || [];
 
   if (locationIds.length === 0) {
-    return performWebSearch(query, count) // ウェブ検索へのフォールバック
+    return performWebSearch(query, count); // ウェブ検索へのフォールバック
   }
 
   // POIの詳細と説明を並列で取得
   const [poisData, descriptionsData] = await Promise.all([
     getPoisData(locationIds),
-    getDescriptionsData(locationIds)
-  ])
+    getDescriptionsData(locationIds),
+  ]);
 
-  return formatLocalResults(poisData, descriptionsData)
+  return formatLocalResults(poisData, descriptionsData);
 }
 
 /**
  * 場所の詳細情報を取得する非同期関数
- * 
+ *
  * @param ids 場所IDの配列
  * @returns 場所の詳細情報
  */
 async function getPoisData(ids: string[]): Promise<BravePoiResponse> {
-  checkRateLimit()
-  const url = new URL('https://api.search.brave.com/res/v1/local/pois')
-  ids.filter(Boolean).forEach(id => url.searchParams.append('ids', id))
+  checkRateLimit();
+  const url = new URL("https://api.search.brave.com/res/v1/local/pois");
+  ids.filter(Boolean).forEach((id) => url.searchParams.append("ids", id));
   const response = await fetch(url, {
     headers: {
-      'Accept': 'application/json',
-      'Accept-Encoding': 'gzip',
-      'X-Subscription-Token': BRAVE_API_KEY
-    }
-  })
+      Accept: "application/json",
+      "Accept-Encoding": "gzip",
+      "X-Subscription-Token": BRAVE_API_KEY,
+    },
+  });
 
   if (!response.ok) {
-    throw new Error(`Brave API error: ${response.status} ${response.statusText}\n${await response.text()}`)
+    throw new Error(
+      `Brave API error: ${response.status} ${response.statusText}\n${await response.text()}`,
+    );
   }
 
-  const poisResponse = await response.json() as BravePoiResponse
-  return poisResponse
+  const poisResponse = (await response.json()) as BravePoiResponse;
+  return poisResponse;
 }
 
 /**
  * 場所の説明情報を取得する非同期関数
- * 
+ *
  * @param ids 場所IDの配列
  * @returns 場所の説明情報
  */
 async function getDescriptionsData(ids: string[]): Promise<BraveDescription> {
-  checkRateLimit()
-  const url = new URL('https://api.search.brave.com/res/v1/local/descriptions')
-  ids.filter(Boolean).forEach(id => url.searchParams.append('ids', id))
+  checkRateLimit();
+  const url = new URL("https://api.search.brave.com/res/v1/local/descriptions");
+  ids.filter(Boolean).forEach((id) => url.searchParams.append("ids", id));
   const response = await fetch(url, {
     headers: {
-      'Accept': 'application/json',
-      'Accept-Encoding': 'gzip',
-      'X-Subscription-Token': BRAVE_API_KEY
-    }
-  })
+      Accept: "application/json",
+      "Accept-Encoding": "gzip",
+      "X-Subscription-Token": BRAVE_API_KEY,
+    },
+  });
 
   if (!response.ok) {
-    throw new Error(`Brave API error: ${response.status} ${response.statusText}\n${await response.text()}`)
+    throw new Error(
+      `Brave API error: ${response.status} ${response.statusText}\n${await response.text()}`,
+    );
   }
 
-  const descriptionsData = await response.json() as BraveDescription
-  return descriptionsData
+  const descriptionsData = (await response.json()) as BraveDescription;
+  return descriptionsData;
 }
 
 /**
  * ローカル検索結果を整形する関数
  * 場所の詳細情報と説明を組み合わせて、読みやすい形式に整形します
- * 
+ *
  * @param poisData 場所の詳細情報
  * @param descData 場所の説明情報
  * @returns 整形された検索結果の文字列
  */
 function formatLocalResults(poisData: BravePoiResponse, descData: BraveDescription): string {
-  return (poisData.results || []).map(poi => {
-    const address = [
-      poi.address?.streetAddress ?? '',
-      poi.address?.addressLocality ?? '',
-      poi.address?.addressRegion ?? '',
-      poi.address?.postalCode ?? ''
-    ].filter(part => part !== '').join(', ') || 'N/A'
+  return (
+    (poisData.results || [])
+      .map((poi) => {
+        const address =
+          [
+            poi.address?.streetAddress ?? "",
+            poi.address?.addressLocality ?? "",
+            poi.address?.addressRegion ?? "",
+            poi.address?.postalCode ?? "",
+          ]
+            .filter((part) => part !== "")
+            .join(", ") || "N/A";
 
-    return `Name: ${poi.name}
+        return `Name: ${poi.name}
 Address: ${address}
-Phone: ${poi.phone || 'N/A'}
-Rating: ${poi.rating?.ratingValue ?? 'N/A'} (${poi.rating?.ratingCount ?? 0} reviews)
-Price Range: ${poi.priceRange || 'N/A'}
-Hours: ${(poi.openingHours || []).join(', ') || 'N/A'}
-Description: ${descData.descriptions[poi.id] || 'No description available'}
-`
-  }).join('\n---\n') || 'No local results found'
+Phone: ${poi.phone || "N/A"}
+Rating: ${poi.rating?.ratingValue ?? "N/A"} (${poi.rating?.ratingCount ?? 0} reviews)
+Price Range: ${poi.priceRange || "N/A"}
+Hours: ${(poi.openingHours || []).join(", ") || "N/A"}
+Description: ${descData.descriptions[poi.id] || "No description available"}
+`;
+      })
+      .join("\n---\n") || "No local results found"
+  );
 }
 
 /**
@@ -336,19 +349,19 @@ server.tool(
   {
     query: z.string().describe("Search query (max 400 chars, 50 words)"),
     count: z.number().optional().describe("Number of results (1-20, default 10)"),
-    offset: z.number().optional().describe("Pagination offset (max 9, default 0)")
+    offset: z.number().optional().describe("Pagination offset (max 9, default 0)"),
   },
   async (args) => {
     try {
       if (!isBraveWebSearchArgs(args)) {
-        throw new Error("Invalid arguments for brave_web_search")
+        throw new Error("Invalid arguments for brave_web_search");
       }
-      const { query, count = 10 } = args
-      const results = await performWebSearch(query, count)
+      const { query, count = 10 } = args;
+      const results = await performWebSearch(query, count);
       return {
         content: [{ type: "text", text: results }],
         isError: false,
-      }
+      };
     } catch (error) {
       return {
         content: [
@@ -358,10 +371,10 @@ server.tool(
           },
         ],
         isError: true,
-      }
+      };
     }
-  }
-)
+  },
+);
 
 /**
  * ローカル検索ツールの実装
@@ -372,19 +385,19 @@ server.tool(
   "Search local businesses, services, and places. Returns real-time data including address, phone, ratings, hours. Use for location-based queries.",
   {
     query: z.string().describe("Local search query (e.g. 'pizza near Central Park')"),
-    count: z.number().optional().describe("Number of results (1-20, default 5)")
+    count: z.number().optional().describe("Number of results (1-20, default 5)"),
   },
   async (args) => {
     try {
       if (!isBraveLocalSearchArgs(args)) {
-        throw new Error("Invalid arguments for brave_local_search")
+        throw new Error("Invalid arguments for brave_local_search");
       }
-      const { query, count = 5 } = args
-      const results = await performLocalSearch(query, count)
+      const { query, count = 5 } = args;
+      const results = await performLocalSearch(query, count);
       return {
         content: [{ type: "text", text: results }],
         isError: false,
-      }
+      };
     } catch (error) {
       return {
         content: [
@@ -394,19 +407,19 @@ server.tool(
           },
         ],
         isError: true,
-      }
+      };
     }
-  }
-)
+  },
+);
 
 // Start server
 async function runServer() {
-  const transport = new StdioServerTransport()
-  await server.connect(transport)
-  console.error("Secure MCP Brave Web Search Server running on stdio")
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+  console.error("Secure MCP Brave Web Search Server running on stdio");
 }
 
 runServer().catch((error) => {
-  console.error("Fatal error running server:", error)
-  process.exit(1)
-})
+  console.error("Fatal error running server:", error);
+  process.exit(1);
+});

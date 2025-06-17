@@ -26,10 +26,10 @@ export const pageTools: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        waitUntil: { 
-          type: "string", 
+        waitUntil: {
+          type: "string",
           description: "When to consider navigation succeeded",
-          enum: ["load", "domcontentloaded", "networkidle0", "networkidle2"]
+          enum: ["load", "domcontentloaded", "networkidle0", "networkidle2"],
         },
       },
     },
@@ -40,10 +40,10 @@ export const pageTools: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        waitUntil: { 
-          type: "string", 
+        waitUntil: {
+          type: "string",
           description: "When to consider navigation succeeded",
-          enum: ["load", "domcontentloaded", "networkidle0", "networkidle2"]
+          enum: ["load", "domcontentloaded", "networkidle0", "networkidle2"],
         },
       },
     },
@@ -54,10 +54,10 @@ export const pageTools: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        waitUntil: { 
-          type: "string", 
+        waitUntil: {
+          type: "string",
           description: "When to consider reload succeeded",
-          enum: ["load", "domcontentloaded", "networkidle0", "networkidle2"]
+          enum: ["load", "domcontentloaded", "networkidle0", "networkidle2"],
         },
       },
     },
@@ -69,12 +69,15 @@ export const pageTools: Tool[] = [
       type: "object",
       properties: {
         path: { type: "string", description: "Optional path to save PDF" },
-        format: { 
-          type: "string", 
+        format: {
+          type: "string",
           description: "Paper format",
-          enum: ["Letter", "Legal", "Tabloid", "Ledger", "A0", "A1", "A2", "A3", "A4", "A5", "A6"]
+          enum: ["Letter", "Legal", "Tabloid", "Ledger", "A0", "A1", "A2", "A3", "A4", "A5", "A6"],
         },
-        printBackground: { type: "boolean", description: "Print background graphics (default: false)" },
+        printBackground: {
+          type: "boolean",
+          description: "Print background graphics (default: false)",
+        },
       },
     },
   },
@@ -84,9 +87,9 @@ export const pageTools: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        device: { 
-          type: "string", 
-          description: "Device name (e.g., 'iPhone 12', 'iPad', 'iPhone SE', 'Pixel 5')" 
+        device: {
+          type: "string",
+          description: "Device name (e.g., 'iPhone 12', 'iPad', 'iPhone SE', 'Pixel 5')",
         },
       },
       required: ["device"],

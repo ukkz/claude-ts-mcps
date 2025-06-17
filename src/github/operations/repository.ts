@@ -2,9 +2,9 @@
  * リポジトリの検索、作成、管理を行うGitHubリポジトリ操作。
  */
 
-import { z } from 'zod';
-import { githubRequest, buildUrl, validateRepositoryName } from '../common/utils';
-import { GitHubRepositorySchema } from '../common/types';
+import { z } from "zod";
+import { githubRequest, buildUrl, validateRepositoryName } from "../common/utils";
+import { GitHubRepositorySchema } from "../common/types";
 
 // リポジトリスキーマの定義
 export const SearchRepositoriesSchema = z.object({
@@ -25,11 +25,7 @@ export const CreateRepositoryOptionsSchema = z.object({
 /**
  * GitHubリポジトリを検索
  */
-export async function searchRepositories(
-  query: string,
-  page?: number,
-  perPage?: number
-) {
+export async function searchRepositories(query: string, page?: number, perPage?: number) {
   const url = buildUrl(`https://api.github.com/search/repositories`, {
     q: query,
     page: page,
@@ -46,7 +42,7 @@ export async function searchRepositories(
 export async function createRepository(options: z.infer<typeof CreateRepositoryOptionsSchema>) {
   // Validate repository name
   options.name = validateRepositoryName(options.name);
-  
+
   const response = await githubRequest(`https://api.github.com/user/repos`, {
     method: "POST",
     body: options,

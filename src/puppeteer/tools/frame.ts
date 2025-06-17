@@ -56,8 +56,8 @@ export const frameTools: Tool[] = [
       properties: {
         selector: { type: "string", description: "CSS selector to search for" },
         text: { type: "string", description: "Text content to search for" },
-        attributes: { 
-          type: "object", 
+        attributes: {
+          type: "object",
           description: "Attribute conditions to match",
           additionalProperties: { type: "string" },
         },

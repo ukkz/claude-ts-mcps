@@ -7,7 +7,7 @@ export class GitHubError extends Error {
   constructor(
     message: string,
     public readonly status: number,
-    public readonly response: unknown
+    public readonly response: unknown,
   ) {
     super(message);
     this.name = "GitHubError";
@@ -45,7 +45,7 @@ export class GitHubPermissionError extends GitHubError {
 export class GitHubRateLimitError extends GitHubError {
   constructor(
     message = "Rate limit exceeded",
-    public readonly resetAt: Date
+    public readonly resetAt: Date,
   ) {
     super(message, 429, { message, reset_at: resetAt.toISOString() });
     this.name = "GitHubRateLimitError";
@@ -74,22 +74,14 @@ export function createGitHubError(status: number, response: any): GitHubError {
     case 409:
       return new GitHubConflictError(response?.message || "Conflict occurred");
     case 422:
-      return new GitHubValidationError(
-        response?.message || "Validation failed",
-        status,
-        response
-      );
+      return new GitHubValidationError(response?.message || "Validation failed", status, response);
     case 429:
       return new GitHubRateLimitError(
         response?.message,
-        new Date(response?.reset_at || Date.now() + 60000)
+        new Date(response?.reset_at || Date.now() + 60000),
       );
     default:
-      return new GitHubError(
-        response?.message || "GitHub API error",
-        status,
-        response
-      );
+      return new GitHubError(response?.message || "GitHub API error", status, response);
   }
 }
 
@@ -98,7 +90,7 @@ export function createGitHubError(status: number, response: any): GitHubError {
  */
 export function formatGitHubError(error: GitHubError): string {
   let message = `GitHub API Error: ${error.message}`;
-  
+
   if (error instanceof GitHubValidationError) {
     message = `Validation Error: ${error.message}`;
     if (error.response) {

@@ -3,12 +3,12 @@
  * このサーバーは、GitリポジトリのAPI機能を提供します
  */
 
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
-import { z } from "zod"
-import { exec } from "child_process"
-import { promisify } from "util"
-import { parseArgs } from "node:util"
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { z } from "zod";
+import { exec } from "child_process";
+import { promisify } from "util";
+import { parseArgs } from "node:util";
 
 // コマンドライン引数の解析
 const { values } = parseArgs({
@@ -16,15 +16,15 @@ const { values } = parseArgs({
     repository: {
       type: "string",
       short: "r",
-      help: "Git repository path"
+      help: "Git repository path",
     },
     verbose: {
       type: "boolean",
       short: "v",
       count: true,
       default: false,
-      help: "Enable verbose logging"
-    }
+      help: "Enable verbose logging",
+    },
   },
   allowPositionals: true,
 });
@@ -97,7 +97,9 @@ class GitRepo {
 
   // 変更をコミット
   async commit(message: string): Promise<string> {
-    const { stdout } = await execAsync(`git commit -m "${message.replace(/"/g, '\\"')}"`, { cwd: this.repoPath });
+    const { stdout } = await execAsync(`git commit -m "${message.replace(/"/g, '\\"')}"`, {
+      cwd: this.repoPath,
+    });
     // 出力からコミットハッシュを抽出
     const commitHashMatch = stdout.match(/\[([a-f0-9]{7,40})\]/);
     const commitHash = commitHashMatch ? commitHashMatch[1] : "unknown";
@@ -106,7 +108,7 @@ class GitRepo {
 
   // ファイルをステージングエリアに追加
   async add(files: string[]): Promise<string> {
-    const fileList = files.map(file => `"${file.replace(/"/g, '\\"')}"`).join(" ");
+    const fileList = files.map((file) => `"${file.replace(/"/g, '\\"')}"`).join(" ");
     await execAsync(`git add ${fileList}`, { cwd: this.repoPath });
     return "Files staged successfully";
   }
@@ -120,11 +122,11 @@ class GitRepo {
   // コミットログを表示
   async log(maxCount: number = 10): Promise<string[]> {
     const { stdout } = await execAsync(
-      `git log -n ${maxCount} --pretty=format:"Commit: %H%nAuthor: %an <%ae>%nDate: %ad%nMessage: %s%n"`, 
-      { cwd: this.repoPath }
+      `git log -n ${maxCount} --pretty=format:"Commit: %H%nAuthor: %an <%ae>%nDate: %ad%nMessage: %s%n"`,
+      { cwd: this.repoPath },
     );
-    
-    return stdout.split("\n\n").filter(entry => entry.trim() !== "");
+
+    return stdout.split("\n\n").filter((entry) => entry.trim() !== "");
   }
 
   // 新しいブランチを作成
@@ -133,7 +135,9 @@ class GitRepo {
       await execAsync(`git branch ${branchName} ${baseBranch}`, { cwd: this.repoPath });
       return `Created branch '${branchName}' from '${baseBranch}'`;
     } else {
-      const { stdout: currentBranch } = await execAsync("git branch --show-current", { cwd: this.repoPath });
+      const { stdout: currentBranch } = await execAsync("git branch --show-current", {
+        cwd: this.repoPath,
+      });
       await execAsync(`git branch ${branchName}`, { cwd: this.repoPath });
       return `Created branch '${branchName}' from '${currentBranch.trim()}'`;
     }
@@ -149,72 +153,74 @@ class GitRepo {
   async show(revision: string): Promise<string> {
     // コミット詳細を取得
     const { stdout: commitDetails } = await execAsync(
-      `git show ${revision} --pretty=format:"Commit: %H%nAuthor: %an <%ae>%nDate: %ad%nMessage: %s%n"`, 
-      { cwd: this.repoPath }
+      `git show ${revision} --pretty=format:"Commit: %H%nAuthor: %an <%ae>%nDate: %ad%nMessage: %s%n"`,
+      { cwd: this.repoPath },
     );
-    
+
     // 差分を取得
-    const { stdout: diff } = await execAsync(`git show ${revision} --format=""`, { cwd: this.repoPath });
-    
+    const { stdout: diff } = await execAsync(`git show ${revision} --format=""`, {
+      cwd: this.repoPath,
+    });
+
     return commitDetails + "\n" + diff;
   }
 }
 
 // ツール入力用のZodスキーマを定義
 const GitStatusSchema = z.object({
-  repo_path: z.string()
+  repo_path: z.string(),
 });
 
 const GitDiffUnstagedSchema = z.object({
-  repo_path: z.string()
+  repo_path: z.string(),
 });
 
 const GitDiffStagedSchema = z.object({
-  repo_path: z.string()
+  repo_path: z.string(),
 });
 
 const GitDiffSchema = z.object({
   repo_path: z.string(),
-  target: z.string()
+  target: z.string(),
 });
 
 const GitCommitSchema = z.object({
   repo_path: z.string(),
-  message: z.string()
+  message: z.string(),
 });
 
 const GitAddSchema = z.object({
   repo_path: z.string(),
-  files: z.array(z.string())
+  files: z.array(z.string()),
 });
 
 const GitResetSchema = z.object({
-  repo_path: z.string()
+  repo_path: z.string(),
 });
 
 const GitLogSchema = z.object({
   repo_path: z.string(),
-  max_count: z.number().optional().default(10)
+  max_count: z.number().optional().default(10),
 });
 
 const GitCreateBranchSchema = z.object({
   repo_path: z.string(),
   branch_name: z.string(),
-  base_branch: z.string().optional()
+  base_branch: z.string().optional(),
 });
 
 const GitCheckoutSchema = z.object({
   repo_path: z.string(),
-  branch_name: z.string()
+  branch_name: z.string(),
 });
 
 const GitShowSchema = z.object({
   repo_path: z.string(),
-  revision: z.string()
+  revision: z.string(),
 });
 
 const GitInitSchema = z.object({
-  repo_path: z.string()
+  repo_path: z.string(),
 });
 
 // Gitツール名をenumオブジェクトとして定義
@@ -230,19 +236,19 @@ const GitTools = {
   CREATE_BRANCH: "git_create_branch",
   CHECKOUT: "git_checkout",
   SHOW: "git_show",
-  INIT: "git_init"
+  INIT: "git_init",
 } as const;
 
 // MCPサーバーを初期化
 const server = new McpServer({
   name: "mcp-git",
-  version: "1.0.0"
+  version: "1.0.0",
 });
 
 // リポジトリパスが提供されている場合、有効かどうかを確認
 if (repository) {
   GitRepo.isValidRepo(repository)
-    .then(isValid => {
+    .then((isValid) => {
       if (isValid) {
         log("info", `Using repository at ${repository}`);
       } else {
@@ -250,7 +256,7 @@ if (repository) {
         process.exit(1);
       }
     })
-    .catch(error => {
+    .catch((error) => {
       log("error", `Error accessing repository: ${error}`);
       process.exit(1);
     });
@@ -266,22 +272,26 @@ server.tool(
       const repo = new GitRepo(args.repo_path);
       const status = await repo.status();
       return {
-        content: [{ 
-          type: "text", 
-          text: `Repository status:\n${status}` 
-        }],
-        isError: false
+        content: [
+          {
+            type: "text",
+            text: `Repository status:\n${status}`,
+          },
+        ],
+        isError: false,
       };
     } catch (error) {
       return {
-        content: [{ 
-          type: "text", 
-          text: `Error: ${error instanceof Error ? error.message : String(error)}` 
-        }],
-        isError: true
+        content: [
+          {
+            type: "text",
+            text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+          },
+        ],
+        isError: true,
       };
     }
-  }
+  },
 );
 
 server.tool(
@@ -293,22 +303,26 @@ server.tool(
       const repo = new GitRepo(args.repo_path);
       const diff = await repo.diffUnstaged();
       return {
-        content: [{ 
-          type: "text", 
-          text: `Unstaged changes:\n${diff}` 
-        }],
-        isError: false
+        content: [
+          {
+            type: "text",
+            text: `Unstaged changes:\n${diff}`,
+          },
+        ],
+        isError: false,
       };
     } catch (error) {
       return {
-        content: [{ 
-          type: "text", 
-          text: `Error: ${error instanceof Error ? error.message : String(error)}` 
-        }],
-        isError: true
+        content: [
+          {
+            type: "text",
+            text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+          },
+        ],
+        isError: true,
       };
     }
-  }
+  },
 );
 
 server.tool(
@@ -320,22 +334,26 @@ server.tool(
       const repo = new GitRepo(args.repo_path);
       const diff = await repo.diffStaged();
       return {
-        content: [{ 
-          type: "text", 
-          text: `Staged changes:\n${diff}` 
-        }],
-        isError: false
+        content: [
+          {
+            type: "text",
+            text: `Staged changes:\n${diff}`,
+          },
+        ],
+        isError: false,
       };
     } catch (error) {
       return {
-        content: [{ 
-          type: "text", 
-          text: `Error: ${error instanceof Error ? error.message : String(error)}` 
-        }],
-        isError: true
+        content: [
+          {
+            type: "text",
+            text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+          },
+        ],
+        isError: true,
       };
     }
-  }
+  },
 );
 
 server.tool(
@@ -347,22 +365,26 @@ server.tool(
       const repo = new GitRepo(args.repo_path);
       const diff = await repo.diff(args.target);
       return {
-        content: [{ 
-          type: "text", 
-          text: `Diff with ${args.target}:\n${diff}` 
-        }],
-        isError: false
+        content: [
+          {
+            type: "text",
+            text: `Diff with ${args.target}:\n${diff}`,
+          },
+        ],
+        isError: false,
       };
     } catch (error) {
       return {
-        content: [{ 
-          type: "text", 
-          text: `Error: ${error instanceof Error ? error.message : String(error)}` 
-        }],
-        isError: true
+        content: [
+          {
+            type: "text",
+            text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+          },
+        ],
+        isError: true,
       };
     }
-  }
+  },
 );
 
 server.tool(
@@ -374,22 +396,26 @@ server.tool(
       const repo = new GitRepo(args.repo_path);
       const result = await repo.commit(args.message);
       return {
-        content: [{ 
-          type: "text", 
-          text: result 
-        }],
-        isError: false
+        content: [
+          {
+            type: "text",
+            text: result,
+          },
+        ],
+        isError: false,
       };
     } catch (error) {
       return {
-        content: [{ 
-          type: "text", 
-          text: `Error: ${error instanceof Error ? error.message : String(error)}` 
-        }],
-        isError: true
+        content: [
+          {
+            type: "text",
+            text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+          },
+        ],
+        isError: true,
       };
     }
-  }
+  },
 );
 
 server.tool(
@@ -401,77 +427,79 @@ server.tool(
       const repo = new GitRepo(args.repo_path);
       const result = await repo.add(args.files);
       return {
-        content: [{ 
-          type: "text", 
-          text: result 
-        }],
-        isError: false
+        content: [
+          {
+            type: "text",
+            text: result,
+          },
+        ],
+        isError: false,
       };
     } catch (error) {
       return {
-        content: [{ 
-          type: "text", 
-          text: `Error: ${error instanceof Error ? error.message : String(error)}` 
-        }],
-        isError: true
+        content: [
+          {
+            type: "text",
+            text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+          },
+        ],
+        isError: true,
       };
     }
-  }
+  },
 );
 
-server.tool(
-  GitTools.RESET,
-  "Unstages all staged changes",
-  GitResetSchema.shape,
-  async (args) => {
-    try {
-      const repo = new GitRepo(args.repo_path);
-      const result = await repo.reset();
-      return {
-        content: [{ 
-          type: "text", 
-          text: result 
-        }],
-        isError: false
-      };
-    } catch (error) {
-      return {
-        content: [{ 
-          type: "text", 
-          text: `Error: ${error instanceof Error ? error.message : String(error)}` 
-        }],
-        isError: true
-      };
-    }
+server.tool(GitTools.RESET, "Unstages all staged changes", GitResetSchema.shape, async (args) => {
+  try {
+    const repo = new GitRepo(args.repo_path);
+    const result = await repo.reset();
+    return {
+      content: [
+        {
+          type: "text",
+          text: result,
+        },
+      ],
+      isError: false,
+    };
+  } catch (error) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+        },
+      ],
+      isError: true,
+    };
   }
-);
+});
 
-server.tool(
-  GitTools.LOG,
-  "Shows the commit logs",
-  GitLogSchema.shape,
-  async (args) => {
-    try {
-      const repo = new GitRepo(args.repo_path);
-      const log = await repo.log(args.max_count);
-      return {
-        content: [{ 
-          type: "text", 
-          text: `Commit history:\n${log.join("\n\n")}` 
-        }],
-        isError: false
-      };
-    } catch (error) {
-      return {
-        content: [{ 
-          type: "text", 
-          text: `Error: ${error instanceof Error ? error.message : String(error)}` 
-        }],
-        isError: true
-      };
-    }
+server.tool(GitTools.LOG, "Shows the commit logs", GitLogSchema.shape, async (args) => {
+  try {
+    const repo = new GitRepo(args.repo_path);
+    const log = await repo.log(args.max_count);
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Commit history:\n${log.join("\n\n")}`,
+        },
+      ],
+      isError: false,
+    };
+  } catch (error) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+        },
+      ],
+      isError: true,
+    };
   }
-);
+});
 
 server.tool(
   GitTools.CREATE_BRANCH,
@@ -482,103 +510,104 @@ server.tool(
       const repo = new GitRepo(args.repo_path);
       const result = await repo.createBranch(args.branch_name, args.base_branch);
       return {
-        content: [{ 
-          type: "text", 
-          text: result 
-        }],
-        isError: false
+        content: [
+          {
+            type: "text",
+            text: result,
+          },
+        ],
+        isError: false,
       };
     } catch (error) {
       return {
-        content: [{ 
-          type: "text", 
-          text: `Error: ${error instanceof Error ? error.message : String(error)}` 
-        }],
-        isError: true
+        content: [
+          {
+            type: "text",
+            text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+          },
+        ],
+        isError: true,
       };
     }
-  }
+  },
 );
 
-server.tool(
-  GitTools.CHECKOUT,
-  "Switches branches",
-  GitCheckoutSchema.shape,
-  async (args) => {
-    try {
-      const repo = new GitRepo(args.repo_path);
-      const result = await repo.checkout(args.branch_name);
-      return {
-        content: [{ 
-          type: "text", 
-          text: result 
-        }],
-        isError: false
-      };
-    } catch (error) {
-      return {
-        content: [{ 
-          type: "text", 
-          text: `Error: ${error instanceof Error ? error.message : String(error)}` 
-        }],
-        isError: true
-      };
-    }
+server.tool(GitTools.CHECKOUT, "Switches branches", GitCheckoutSchema.shape, async (args) => {
+  try {
+    const repo = new GitRepo(args.repo_path);
+    const result = await repo.checkout(args.branch_name);
+    return {
+      content: [
+        {
+          type: "text",
+          text: result,
+        },
+      ],
+      isError: false,
+    };
+  } catch (error) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+        },
+      ],
+      isError: true,
+    };
   }
-);
+});
 
-server.tool(
-  GitTools.SHOW,
-  "Shows the contents of a commit",
-  GitShowSchema.shape,
-  async (args) => {
-    try {
-      const repo = new GitRepo(args.repo_path);
-      const result = await repo.show(args.revision);
-      return {
-        content: [{ 
-          type: "text", 
-          text: result 
-        }],
-        isError: false
-      };
-    } catch (error) {
-      return {
-        content: [{ 
-          type: "text", 
-          text: `Error: ${error instanceof Error ? error.message : String(error)}` 
-        }],
-        isError: true
-      };
-    }
+server.tool(GitTools.SHOW, "Shows the contents of a commit", GitShowSchema.shape, async (args) => {
+  try {
+    const repo = new GitRepo(args.repo_path);
+    const result = await repo.show(args.revision);
+    return {
+      content: [
+        {
+          type: "text",
+          text: result,
+        },
+      ],
+      isError: false,
+    };
+  } catch (error) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+        },
+      ],
+      isError: true,
+    };
   }
-);
+});
 
-server.tool(
-  GitTools.INIT,
-  "Initialize a new Git repository",
-  GitInitSchema.shape,
-  async (args) => {
-    try {
-      const result = await GitRepo.init(args.repo_path);
-      return {
-        content: [{ 
-          type: "text", 
-          text: result 
-        }],
-        isError: false
-      };
-    } catch (error) {
-      return {
-        content: [{ 
-          type: "text", 
-          text: `Error: ${error instanceof Error ? error.message : String(error)}` 
-        }],
-        isError: true
-      };
-    }
+server.tool(GitTools.INIT, "Initialize a new Git repository", GitInitSchema.shape, async (args) => {
+  try {
+    const result = await GitRepo.init(args.repo_path);
+    return {
+      content: [
+        {
+          type: "text",
+          text: result,
+        },
+      ],
+      isError: false,
+    };
+  } catch (error) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+        },
+      ],
+      isError: true,
+    };
   }
-);
+});
 
 // サーバーを起動
 async function main() {
@@ -592,7 +621,7 @@ async function main() {
   }
 }
 
-main().catch(error => {
+main().catch((error) => {
   console.error("Fatal error:", error);
   process.exit(1);
 });

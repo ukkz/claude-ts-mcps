@@ -11,13 +11,14 @@ export const keyboardTools: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        key: { 
-          type: "string", 
-          description: "Key to press (e.g., 'Enter', 'Tab', 'Escape', 'ArrowDown', 'Space', 'Control+A', 'Shift+Tab')" 
+        key: {
+          type: "string",
+          description:
+            "Key to press (e.g., 'Enter', 'Tab', 'Escape', 'ArrowDown', 'Space', 'Control+A', 'Shift+Tab')",
         },
-        delay: { 
-          type: "number", 
-          description: "Delay between keydown and keyup in milliseconds" 
+        delay: {
+          type: "number",
+          description: "Delay between keydown and keyup in milliseconds",
         },
       },
       required: ["key"],
@@ -29,13 +30,13 @@ export const keyboardTools: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        text: { 
-          type: "string", 
-          description: "Text to type" 
+        text: {
+          type: "string",
+          description: "Text to type",
         },
-        delay: { 
-          type: "number", 
-          description: "Delay between each character in milliseconds (simulates human typing)" 
+        delay: {
+          type: "number",
+          description: "Delay between each character in milliseconds (simulates human typing)",
         },
       },
       required: ["text"],

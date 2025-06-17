@@ -4,11 +4,11 @@
 
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { 
-  createErrorResponse, 
-  createSuccessResponse, 
+import {
+  createErrorResponse,
+  createSuccessResponse,
   createSuccessResponseWithImage,
-  ensureBrowser 
+  ensureBrowser,
 } from "../utils.js";
 import { saveScreenshot } from "../state.js";
 import {
@@ -18,7 +18,7 @@ import {
   FillArgs,
   SelectArgs,
   HoverArgs,
-  EvaluateArgs
+  EvaluateArgs,
 } from "../types.js";
 
 /**
@@ -37,12 +37,15 @@ export async function handleNavigate(args: NavigateArgs, server: Server): Promis
 /**
  * スクリーンショット撮影を処理
  */
-export async function handleScreenshot(args: ScreenshotArgs, server: Server): Promise<CallToolResult> {
+export async function handleScreenshot(
+  args: ScreenshotArgs,
+  server: Server,
+): Promise<CallToolResult> {
   try {
     const page = await ensureBrowser(server);
     const width = args.width ?? 800;
     const height = args.height ?? 600;
-    
+
     await page.setViewport({ width, height });
 
     const screenshot = await (args.selector
@@ -51,7 +54,7 @@ export async function handleScreenshot(args: ScreenshotArgs, server: Server): Pr
 
     if (!screenshot) {
       return createErrorResponse(
-        args.selector ? `Element not found: ${args.selector}` : "Screenshot failed"
+        args.selector ? `Element not found: ${args.selector}` : "Screenshot failed",
       );
     }
 
@@ -63,7 +66,7 @@ export async function handleScreenshot(args: ScreenshotArgs, server: Server): Pr
 
     return createSuccessResponseWithImage(
       `Screenshot '${args.name}' taken at ${width}x${height}`,
-      screenshot as string
+      screenshot as string,
     );
   } catch (error) {
     return createErrorResponse(`Screenshot failed: ${(error as Error).message}`);
@@ -131,7 +134,7 @@ export async function handleHover(args: HoverArgs, server: Server): Promise<Call
 export async function handleEvaluate(args: EvaluateArgs, server: Server): Promise<CallToolResult> {
   try {
     const page = await ensureBrowser(server);
-    
+
     // コンソールログキャプチャを設定
     await page.evaluate(() => {
       window.mcpHelper = {
@@ -139,9 +142,9 @@ export async function handleEvaluate(args: EvaluateArgs, server: Server): Promis
         originalConsole: { ...console },
       };
 
-      ['log', 'info', 'warn', 'error'].forEach(method => {
+      ["log", "info", "warn", "error"].forEach((method) => {
         (console as any)[method] = (...args: any[]) => {
-          window.mcpHelper.logs.push(`[${method}] ${args.join(' ')}`);
+          window.mcpHelper.logs.push(`[${method}] ${args.join(" ")}`);
           (window.mcpHelper.originalConsole as any)[method](...args);
         };
       });
@@ -159,10 +162,12 @@ export async function handleEvaluate(args: EvaluateArgs, server: Server): Promis
     });
 
     return {
-      content: [{
-        type: "text",
-        text: `Execution result:\n${JSON.stringify(result, null, 2)}\n\nConsole output:\n${logs.join('\n')}`,
-      }],
+      content: [
+        {
+          type: "text",
+          text: `Execution result:\n${JSON.stringify(result, null, 2)}\n\nConsole output:\n${logs.join("\n")}`,
+        },
+      ],
       isError: false,
     };
   } catch (error) {

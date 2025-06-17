@@ -2,8 +2,8 @@
  * コード、Issue/PR、ユーザーなどを検索するGitHub検索操作。
  */
 
-import { z } from 'zod';
-import { githubRequest, buildUrl } from '../common/utils';
+import { z } from "zod";
+import { githubRequest, buildUrl } from "../common/utils";
 
 // 検索スキーマ
 export const SearchCodeSchema = z.object({
@@ -42,7 +42,7 @@ export async function searchCode(options: z.infer<typeof SearchCodeSchema>) {
     sort: options.sort,
     order: options.order,
   };
-  
+
   const url = buildUrl(`https://api.github.com/search/code`, params);
 
   const response = await githubRequest(url);
@@ -61,7 +61,7 @@ export async function searchIssues(options: z.infer<typeof SearchIssuesSchema>) 
     sort: options.sort,
     order: options.order,
   };
-  
+
   const url = buildUrl(`https://api.github.com/search/issues`, params);
 
   const response = await githubRequest(url);
@@ -80,7 +80,7 @@ export async function searchUsers(options: z.infer<typeof SearchUsersSchema>) {
     sort: options.sort,
     order: options.order,
   };
-  
+
   const url = buildUrl(`https://api.github.com/search/users`, params);
 
   const response = await githubRequest(url);

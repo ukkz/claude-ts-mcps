@@ -11,8 +11,8 @@ export const cookieTools: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        cookies: { 
-          type: "array", 
+        cookies: {
+          type: "array",
           description: "Array of cookie objects",
           items: {
             type: "object",

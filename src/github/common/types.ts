@@ -3,7 +3,7 @@
  * これらの型定義は、GitHub APIからのレスポンスを検証するために使用されます。
  */
 
-import { z } from 'zod';
+import { z } from "zod";
 
 // 共通型の基本スキーマ
 export const GitHubAuthorSchema = z.object({
@@ -45,7 +45,7 @@ export const GitHubRepositorySchema = z.object({
 export const GithubFileContentLinks = z.object({
   self: z.string(),
   git: z.string().nullable(),
-  html: z.string().nullable()
+  html: z.string().nullable(),
 });
 
 export const GitHubFileContentSchema = z.object({
@@ -60,7 +60,7 @@ export const GitHubFileContentSchema = z.object({
   type: z.string(),
   content: z.string().optional(),
   encoding: z.string().optional(),
-  _links: GithubFileContentLinks
+  _links: GithubFileContentLinks,
 });
 
 export const GitHubDirectoryContentSchema = z.object({
@@ -111,7 +111,7 @@ export const GitHubCommitSchema = z.object({
     z.object({
       sha: z.string(),
       url: z.string(),
-    })
+    }),
   ),
 });
 

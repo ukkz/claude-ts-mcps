@@ -2,7 +2,7 @@
  * GitHub APIリクエストの作成とレスポンス処理用のユーティリティ関数。
  */
 
-import { createGitHubError } from './errors';
+import { createGitHubError } from "./errors";
 
 /**
  * GitHub MCPサーバーのバージョン情報
@@ -14,7 +14,7 @@ export type RequestOptions = {
   method?: string;
   body?: unknown;
   headers?: Record<string, string>;
-}
+};
 
 /**
  * コンテントタイプに基づいてレスポンスボディをパース
@@ -30,7 +30,10 @@ async function parseResponseBody(response: Response): Promise<unknown> {
 /**
  * クエリパラメータ付きURLを生成
  */
-export function buildUrl(baseUrl: string, params: Record<string, string | number | undefined>): string {
+export function buildUrl(
+  baseUrl: string,
+  params: Record<string, string | number | undefined>,
+): string {
   const url = new URL(baseUrl);
   Object.entries(params).forEach(([key, value]) => {
     if (value !== undefined) {
@@ -48,11 +51,11 @@ const USER_AGENT = `claude-ts-mcps/github/v${VERSION}`;
  * @returns 対応するGitHubトークン
  */
 export function getGitHubToken(accountProfile?: string): string | undefined {
-  if (!accountProfile || accountProfile === 'default') {
+  if (!accountProfile || accountProfile === "default") {
     // 従来の環境変数名をデフォルトとして維持
     return process.env.GITHUB_PERSONAL_ACCESS_TOKEN;
   }
-  
+
   // アカウントプロファイル名に基づいてトークンを取得
   // 例: 'work' → GITHUB_TOKEN_WORK
   const tokenEnvName = `GITHUB_TOKEN_${accountProfile.toUpperCase()}`;
@@ -65,10 +68,10 @@ export function getGitHubToken(accountProfile?: string): string | undefined {
 export async function githubRequest(
   url: string,
   options: RequestOptions = {},
-  accountProfile?: string
+  accountProfile?: string,
 ): Promise<unknown> {
   const headers: Record<string, string> = {
-    "Accept": "application/vnd.github.v3+json",
+    Accept: "application/vnd.github.v3+json",
     "Content-Type": "application/json",
     "User-Agent": USER_AGENT,
     ...options.headers,
@@ -127,7 +130,7 @@ export function validateRepositoryName(name: string): string {
   }
   if (!/^[a-z0-9_.-]+$/.test(sanitized)) {
     throw new Error(
-      "Repository name can only contain lowercase letters, numbers, hyphens, periods, and underscores"
+      "Repository name can only contain lowercase letters, numbers, hyphens, periods, and underscores",
     );
   }
   if (sanitized.startsWith(".") || sanitized.endsWith(".")) {
@@ -146,7 +149,7 @@ export function validateOwnerName(owner: string): string {
   }
   if (!/^[a-z0-9](?:[a-z0-9]|-(?=[a-z0-9])){0,38}$/.test(sanitized)) {
     throw new Error(
-      "Owner name must start with a letter or number and can contain up to 39 characters"
+      "Owner name must start with a letter or number and can contain up to 39 characters",
     );
   }
   return sanitized;
@@ -158,12 +161,10 @@ export function validateOwnerName(owner: string): string {
 export async function checkBranchExists(
   owner: string,
   repo: string,
-  branch: string
+  branch: string,
 ): Promise<boolean> {
   try {
-    await githubRequest(
-      `https://api.github.com/repos/${owner}/${repo}/branches/${branch}`
-    );
+    await githubRequest(`https://api.github.com/repos/${owner}/${repo}/branches/${branch}`);
     return true;
   } catch (error) {
     if (error && typeof error === "object" && "status" in error && error.status === 404) {

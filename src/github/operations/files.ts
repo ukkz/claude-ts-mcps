@@ -2,15 +2,15 @@
  * リポジトリ内のファイルの作成、読み取り、更新を行うGitHubファイル操作。
  */
 
-import { z } from 'zod';
-import { githubRequest } from '../common/utils';
-import { GitHubBaseSchema, mergeSchemas } from '../common/base-schemas';
+import { z } from "zod";
+import { githubRequest } from "../common/utils";
+import { GitHubBaseSchema, mergeSchemas } from "../common/base-schemas";
 import {
   GitHubContentSchema,
   GitHubTreeSchema,
   GitHubCommitSchema,
   GitHubReferenceSchema,
-} from '../common/types';
+} from "../common/types";
 
 // スキーマ定義
 export const FileOperationSchema = z.object({
@@ -27,8 +27,11 @@ export const CreateOrUpdateFileSchema = mergeSchemas(
     content: z.string().describe("Content of the file"),
     message: z.string().describe("Commit message"),
     branch: z.string().describe("Branch to create/update the file in"),
-    sha: z.string().optional().describe("SHA of the file being replaced (required when updating existing files)"),
-  })
+    sha: z
+      .string()
+      .optional()
+      .describe("SHA of the file being replaced (required when updating existing files)"),
+  }),
 );
 
 export const GetFileContentsSchema = mergeSchemas(
@@ -38,7 +41,7 @@ export const GetFileContentsSchema = mergeSchemas(
     repo: z.string().describe("Repository name"),
     path: z.string().describe("Path to the file or directory"),
     branch: z.string().optional().describe("Branch to get contents from"),
-  })
+  }),
 );
 
 export const PushFilesSchema = mergeSchemas(
@@ -49,7 +52,7 @@ export const PushFilesSchema = mergeSchemas(
     branch: z.string().describe("Branch to push to (e.g., 'main' or 'master')"),
     files: z.array(FileOperationSchema).describe("Array of files to push"),
     message: z.string().describe("Commit message"),
-  })
+  }),
 );
 
 export const GitHubCreateUpdateFileResponseSchema = z.object({
@@ -71,7 +74,7 @@ export const GitHubCreateUpdateFileResponseSchema = z.object({
         sha: z.string(),
         url: z.string(),
         html_url: z.string(),
-      })
+      }),
     ),
   }),
 });
@@ -88,7 +91,7 @@ export async function getFileContents(
   repo: string,
   path: string,
   branch?: string,
-  accountProfile?: string
+  accountProfile?: string,
 ) {
   let url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
   if (branch) {
@@ -117,7 +120,7 @@ export async function createOrUpdateFile(
   message: string,
   branch: string,
   sha?: string,
-  accountProfile?: string
+  accountProfile?: string,
 ) {
   const encodedContent = Buffer.from(content).toString("base64");
 
@@ -141,10 +144,14 @@ export async function createOrUpdateFile(
     ...(currentSha ? { sha: currentSha } : {}),
   };
 
-  const response = await githubRequest(url, {
-    method: "PUT",
-    body,
-  }, accountProfile);
+  const response = await githubRequest(
+    url,
+    {
+      method: "PUT",
+      body,
+    },
+    accountProfile,
+  );
 
   return GitHubCreateUpdateFileResponseSchema.parse(response);
 }
@@ -158,7 +165,7 @@ async function createTree(
   repo: string,
   files: FileOperation[],
   baseTree?: string,
-  accountProfile?: string
+  accountProfile?: string,
 ) {
   const tree = files.map((file) => ({
     path: file.path,
@@ -176,7 +183,7 @@ async function createTree(
         base_tree: baseTree,
       },
     },
-    accountProfile
+    accountProfile,
   );
 
   return GitHubTreeSchema.parse(response);
@@ -192,7 +199,7 @@ async function createCommit(
   message: string,
   tree: string,
   parents: string[],
-  accountProfile?: string
+  accountProfile?: string,
 ) {
   const response = await githubRequest(
     `https://api.github.com/repos/${owner}/${repo}/git/commits`,
@@ -204,7 +211,7 @@ async function createCommit(
         parents,
       },
     },
-    accountProfile
+    accountProfile,
   );
 
   return GitHubCommitSchema.parse(response);
@@ -219,7 +226,7 @@ async function updateReference(
   repo: string,
   ref: string,
   sha: string,
-  accountProfile?: string
+  accountProfile?: string,
 ) {
   const response = await githubRequest(
     `https://api.github.com/repos/${owner}/${repo}/git/refs/${ref}`,
@@ -230,7 +237,7 @@ async function updateReference(
         force: true,
       },
     },
-    accountProfile
+    accountProfile,
   );
 
   return GitHubReferenceSchema.parse(response);
@@ -245,12 +252,12 @@ export async function pushFiles(
   branch: string,
   files: FileOperation[],
   message: string,
-  accountProfile?: string
+  accountProfile?: string,
 ) {
   const refResponse = await githubRequest(
     `https://api.github.com/repos/${owner}/${repo}/git/refs/heads/${branch}`,
     {},
-    accountProfile
+    accountProfile,
   );
 
   const ref = GitHubReferenceSchema.parse(refResponse);

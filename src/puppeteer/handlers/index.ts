@@ -14,7 +14,7 @@ import {
   handleFill,
   handleSelect,
   handleHover,
-  handleEvaluate
+  handleEvaluate,
 } from "./navigation.js";
 
 // 待機系
@@ -22,14 +22,11 @@ import {
   handleWaitForSelector,
   handleWaitForTimeout,
   handleWaitForFunction,
-  handleWaitForNavigation
+  handleWaitForNavigation,
 } from "./wait.js";
 
 // キーボード操作系
-import {
-  handleKeyboardPress,
-  handleKeyboardType
-} from "./keyboard.js";
+import { handleKeyboardPress, handleKeyboardType } from "./keyboard.js";
 
 // ページ管理系
 import {
@@ -38,15 +35,11 @@ import {
   handleGoForward,
   handleReload,
   handlePdf,
-  handleEmulateDevice
+  handleEmulateDevice,
 } from "./page.js";
 
 // Cookie・認証系
-import {
-  handleSetCookies,
-  handleGetCookies,
-  handleAuthenticate
-} from "./cookie.js";
+import { handleSetCookies, handleGetCookies, handleAuthenticate } from "./cookie.js";
 
 // 情報取得系
 import {
@@ -54,7 +47,7 @@ import {
   handleGetUrl,
   handleGetContent,
   handleGetText,
-  handleGetElementInfo
+  handleGetElementInfo,
 } from "./info.js";
 
 // Frame操作系
@@ -63,22 +56,19 @@ import {
   handleSwitchToFrame,
   handleSwitchToMainFrame,
   handleEvaluateInFrame,
-  handleSearchAcrossFrames
+  handleSearchAcrossFrames,
 } from "./frame.js";
 
 // その他
-import {
-  handleAddScriptTag,
-  handleClearInput
-} from "./misc.js";
+import { handleAddScriptTag, handleClearInput } from "./misc.js";
 
 /**
  * ツール呼び出しを処理するメインハンドラー
  */
 export async function handleToolCall(
-  name: string, 
+  name: string,
   args: any,
-  server: Server
+  server: Server,
 ): Promise<CallToolResult> {
   try {
     switch (name) {
@@ -97,7 +87,7 @@ export async function handleToolCall(
         return await handleHover(args, server);
       case "puppeteer_evaluate":
         return await handleEvaluate(args, server);
-      
+
       // 待機系
       case "puppeteer_wait_for_selector":
         return await handleWaitForSelector(args, server);
@@ -107,13 +97,13 @@ export async function handleToolCall(
         return await handleWaitForFunction(args, server);
       case "puppeteer_wait_for_navigation":
         return await handleWaitForNavigation(args, server);
-      
+
       // キーボード操作系
       case "puppeteer_keyboard_press":
         return await handleKeyboardPress(args, server);
       case "puppeteer_keyboard_type":
         return await handleKeyboardType(args, server);
-      
+
       // ページ管理系
       case "puppeteer_set_viewport":
         return await handleSetViewport(args, server);
@@ -127,7 +117,7 @@ export async function handleToolCall(
         return await handlePdf(args, server);
       case "puppeteer_emulate_device":
         return await handleEmulateDevice(args, server);
-      
+
       // Cookie・認証系
       case "puppeteer_set_cookies":
         return await handleSetCookies(args, server);
@@ -135,7 +125,7 @@ export async function handleToolCall(
         return await handleGetCookies(server);
       case "puppeteer_authenticate":
         return await handleAuthenticate(args, server);
-      
+
       // 情報取得系
       case "puppeteer_get_title":
         return await handleGetTitle(server);
@@ -147,7 +137,7 @@ export async function handleToolCall(
         return await handleGetText(args, server);
       case "puppeteer_get_element_info":
         return await handleGetElementInfo(args, server);
-      
+
       // Frame操作系
       case "puppeteer_get_frames":
         return await handleGetFrames(args, server);
@@ -159,13 +149,13 @@ export async function handleToolCall(
         return await handleEvaluateInFrame(args, server);
       case "puppeteer_search_across_frames":
         return await handleSearchAcrossFrames(args, server);
-      
+
       // その他
       case "puppeteer_add_script_tag":
         return await handleAddScriptTag(args, server);
       case "puppeteer_clear_input":
         return await handleClearInput(args, server);
-      
+
       default:
         return createErrorResponse(`Unknown tool: ${name}`);
     }

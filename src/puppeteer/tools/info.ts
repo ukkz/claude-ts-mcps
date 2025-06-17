@@ -27,7 +27,10 @@ export const infoTools: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        fullPage: { type: "boolean", description: "Whether to get the full HTML including doctype" },
+        fullPage: {
+          type: "boolean",
+          description: "Whether to get the full HTML including doctype",
+        },
       },
     },
   },

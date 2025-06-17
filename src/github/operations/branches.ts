@@ -2,10 +2,10 @@
  * ブランチの作成と管理を行うGitHubブランチ操作。
  */
 
-import { z } from 'zod';
-import { githubRequest, validateBranchName } from '../common/utils';
-import { GitHubReferenceSchema } from '../common/types';
-import { GitHubBaseSchema, mergeSchemas } from '../common/base-schemas';
+import { z } from "zod";
+import { githubRequest, validateBranchName } from "../common/utils";
+import { GitHubReferenceSchema } from "../common/types";
+import { GitHubBaseSchema, mergeSchemas } from "../common/base-schemas";
 
 // ブランチスキーマの定義
 export const CreateBranchSchema = mergeSchemas(
@@ -15,7 +15,7 @@ export const CreateBranchSchema = mergeSchemas(
     repo: z.string().describe("Repository name"),
     branch: z.string().describe("New branch name"),
     from_branch: z.string().optional().describe("Base branch name"),
-  })
+  }),
 );
 
 /**
@@ -26,7 +26,7 @@ export async function createBranchFromRef(
   repo: string,
   branch: string,
   fromBranch?: string,
-  accountProfile?: string
+  accountProfile?: string,
 ) {
   // Validate branch names
   branch = validateBranchName(branch);
@@ -36,7 +36,7 @@ export async function createBranchFromRef(
   const refResponse = await githubRequest(
     `https://api.github.com/repos/${owner}/${repo}/git/refs/heads/${baseBranch}`,
     {},
-    accountProfile
+    accountProfile,
   );
   const ref = GitHubReferenceSchema.parse(refResponse);
 
@@ -50,7 +50,7 @@ export async function createBranchFromRef(
         sha: ref.object.sha,
       },
     },
-    accountProfile
+    accountProfile,
   );
 
   return GitHubReferenceSchema.parse(response);

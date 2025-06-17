@@ -1,6 +1,6 @@
 /**
  * Puppeteer MCP 型定義
- * 
+ *
  * このファイルには、Puppeteer MCPサーバーで使用される
  * すべての型定義が含まれています。
  */
@@ -13,9 +13,9 @@ import { Tool } from "@modelcontextprotocol/sdk/types.js";
 declare global {
   interface Window {
     mcpHelper: {
-      logs: string[],
-      originalConsole: Partial<typeof console>,
-    }
+      logs: string[];
+      originalConsole: Partial<typeof console>;
+    };
   }
 }
 
@@ -72,7 +72,7 @@ export interface WaitForFunctionArgs {
 }
 
 export interface WaitForNavigationArgs {
-  waitUntil?: 'load' | 'domcontentloaded' | 'networkidle0' | 'networkidle2';
+  waitUntil?: "load" | "domcontentloaded" | "networkidle0" | "networkidle2";
   timeout?: number;
 }
 
@@ -95,15 +95,15 @@ export interface SetViewportArgs {
 }
 
 export interface GoBackArgs {
-  waitUntil?: 'load' | 'domcontentloaded' | 'networkidle0' | 'networkidle2';
+  waitUntil?: "load" | "domcontentloaded" | "networkidle0" | "networkidle2";
 }
 
 export interface GoForwardArgs {
-  waitUntil?: 'load' | 'domcontentloaded' | 'networkidle0' | 'networkidle2';
+  waitUntil?: "load" | "domcontentloaded" | "networkidle0" | "networkidle2";
 }
 
 export interface ReloadArgs {
-  waitUntil?: 'load' | 'domcontentloaded' | 'networkidle0' | 'networkidle2';
+  waitUntil?: "load" | "domcontentloaded" | "networkidle0" | "networkidle2";
 }
 
 export interface PdfArgs {
@@ -124,7 +124,7 @@ export interface CookieObject {
   expires?: number;
   httpOnly?: boolean;
   secure?: boolean;
-  sameSite?: 'Strict' | 'Lax' | 'None';
+  sameSite?: "Strict" | "Lax" | "None";
 }
 
 export interface SetCookiesArgs {
@@ -186,14 +186,14 @@ export interface ClearInputArgs {
  * ツールカテゴリ
  */
 export enum ToolCategory {
-  Navigation = 'navigation',
-  Wait = 'wait',
-  Keyboard = 'keyboard',
-  Page = 'page',
-  Cookie = 'cookie',
-  Info = 'info',
-  Frame = 'frame',
-  Misc = 'misc',
+  Navigation = "navigation",
+  Wait = "wait",
+  Keyboard = "keyboard",
+  Page = "page",
+  Cookie = "cookie",
+  Info = "info",
+  Frame = "frame",
+  Misc = "misc",
 }
 
 /**
