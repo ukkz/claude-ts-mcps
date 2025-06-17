@@ -1,198 +1,393 @@
-# Claude TypeScript MCP Servers
+# Claude TypeScript MCP Servers (For Software Developers)
 
-A collection of Model Context Protocol (MCP) servers aimed at software developers who use LLMs for development assistance. While many developers prefer Cline for its direct VSCode integration, it uses a pay-per-use API that becomes costly with heavy usage. This project leverages the flat-rate Claude Pro subscription by connecting Claude Desktop application with custom MCP servers, providing comparable development assistance capabilities without the variable costs.
+A comprehensive collection of Model Context Protocol (MCP) servers that
+transform Claude Desktop into a powerful development assistant. This project
+leverages your flat-rate Claude Pro/Max subscription to provide capabilities
+similar to Cline, but without the per-token API costs.
 
-日本語による解説記事: [Cline任せでコード書いてたらAPIクレジットが爆散したのでClaude Desktop + MCPをいい感じにしてサブスクだけで無双する](https://zenn.dev/ukkz/articles/c8726063edd2cd)
+日本語による解説記事:
+[Cline任せでコード書いてたらAPIクレジットが爆散したのでClaude Desktop + MCPをいい感じにしてサブスクだけで無双する](https://zenn.dev/ukkz/articles/c8726063edd2cd)
 
-## Overview
+## 🚀 Features
 
-This project implements several MCP servers that can be used with Claude Desktop to enhance its capabilities for software development:
+- **File System Operations** - Read, write, and manage files with security
+  restrictions
+- **Git Integration** - Full Git workflow support including commits, branches,
+  and diffs
+- **GitHub API** - Manage repositories, issues, PRs, and more with multi-account
+  support
+- **Web Search** - AI-powered search with Sonar and traditional keyword search
+  with Brave
+- **Browser Automation** - 30+ Puppeteer tools for web scraping and automation
+- **Shell Commands** - Execute development commands in a controlled environment
+- **URL Fetching** - Extract content from web pages with HTML-to-Markdown
+  conversion
 
-- **Brave Search**: Provides web search and local search functionality using the Brave Search API
-- **Filesystem**: Enables file system operations with security restrictions
-- **Git**: Provides Git functionality for managing repositories
-- **GitHub**: Enables interaction with GitHub repositories, issues, pull requests, and more
-- **Shell**: Allows execution of shell commands in a controlled environment
-- **Puppeteer**: Enables browser automation and web interaction through Puppeteer
-- **Fetch**: Retrieves content from URLs and converts HTML to Markdown for improved readability
+## 📋 Requirements
 
-## Requirements
-
-- [Node.js](https://nodejs.org/) (v18+)
-- [Bun](https://bun.sh/) as the JavaScript/TypeScript runtime
+- [Node.js](https://nodejs.org/) v18 or higher
+- [Bun](https://bun.sh/) runtime
 - [Claude Desktop](https://anthropic.com/claude) application
+- API keys for external services (Brave Search, Perplexity/Sonar)
 
-## Installation
+## 🛠️ Installation
 
-1. Clone the repository:
-   ```
-   git clone https://github.com/yourusername/claude-ts-mcps.git
-   cd claude-ts-mcps
-   ```
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/claude-ts-mcps.git
+cd claude-ts-mcps
 
-2. Install dependencies:
-   ```
-   bun install
-   ```
+# Install dependencies
+bun install
+```
 
-## Configuration
+## ⚙️ Configuration
 
-To use these MCP servers with Claude Desktop, you need to create a configuration file that tells Claude how to connect to them. Here's an example configuration:
+Create a configuration file for Claude Desktop with all the MCP servers:
 
 ```json
 {
-    "mcpServers": {
-        "brave-search": {
-            "command": "/Users/username/.bun/bin/bun",
-            "args": [
-                "run",
-                "/Users/username/Documents/claude-ts-mcps/src/brave-search.ts"
-            ],
-            "env": {
-                "BRAVE_API_KEY": "YOUR_BRAVE_API_KEY"
-            }
-        },
-        "filesystem": {
-            "command": "/Users/username/.bun/bin/bun",
-            "args": [
-                "run",
-                "/Users/username/Documents/claude-ts-mcps/src/filesystem.ts",
-                "/Users/username"
-            ]
-        },
-        "git": {
-            "command": "/Users/username/.bun/bin/bun",
-            "args": [
-                "run",
-                "/Users/username/Documents/claude-ts-mcps/src/git.ts"
-            ]
-        },
-        "github": {
-            "command": "/Users/username/.bun/bin/bun",
-            "args": [
-                "run",
-                "/Users/username/Documents/claude-ts-mcps/src/github.ts"
-            ],
-            "env": {
-                "GITHUB_PERSONAL_ACCESS_TOKEN": "YOUR_DEFAULT_TOKEN",
-                "GITHUB_TOKEN_WORK": "YOUR_WORK_ACCOUNT_TOKEN",
-                "GITHUB_TOKEN_PERSONAL": "YOUR_PERSONAL_ACCOUNT_TOKEN"
-            }
-        },
-        "shell": {
-            "command": "/Users/username/.bun/bin/bun",
-            "args": [
-                "run",
-                "/Users/username/Documents/claude-ts-mcps/src/shell.ts"
-            ]
-        },
-        "puppeteer": {
-            "command": "/Users/username/.bun/bin/bun",
-            "args": [
-                "run",
-                "/Users/username/Documents/claude-ts-mcps/src/puppeteer.ts"
-            ]
-        },
-        "fetch": {
-            "command": "/Users/username/.bun/bin/bun",
-            "args": [
-                "run",
-                "/Users/username/Documents/claude-ts-mcps/src/fetch.ts"
-            ],
-            "env": {
-                "CUSTOM_USER_AGENT": "YOUR_CUSTOM_USER_AGENT", // Optional
-                "IGNORE_ROBOTS_TXT": "false"                   // Optional, set to true to ignore robots.txt
-            }
-        }
+  "mcpServers": {
+    "filesystem": {
+      "command": "/Users/username/.bun/bin/bun",
+      "args": [
+        "run",
+        "/path/to/claude-ts-mcps/src/filesystem.ts",
+        "/Users/username"
+      ]
+    },
+    "git": {
+      "command": "/Users/username/.bun/bin/bun",
+      "args": ["run", "/path/to/claude-ts-mcps/src/git.ts"]
+    },
+    "github": {
+      "command": "/Users/username/.bun/bin/bun",
+      "args": ["run", "/path/to/claude-ts-mcps/src/github.ts"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "YOUR_DEFAULT_TOKEN",
+        "GITHUB_TOKEN_WORK": "YOUR_WORK_ACCOUNT_TOKEN",
+        "GITHUB_TOKEN_PERSONAL": "YOUR_PERSONAL_ACCOUNT_TOKEN"
+      }
+    },
+    "brave-search": {
+      "command": "/Users/username/.bun/bin/bun",
+      "args": ["run", "/path/to/claude-ts-mcps/src/brave-search.ts"],
+      "env": {
+        "BRAVE_API_KEY": "YOUR_BRAVE_API_KEY"
+      }
+    },
+    "sonar": {
+      "command": "/Users/username/.bun/bin/bun",
+      "args": ["run", "/path/to/claude-ts-mcps/src/sonar.ts"],
+      "env": {
+        "PERPLEXITY_API_KEY": "YOUR_PERPLEXITY_API_KEY"
+      }
+    },
+    "puppeteer": {
+      "command": "/Users/username/.bun/bin/bun",
+      "args": ["run", "/path/to/claude-ts-mcps/src/puppeteer/index.ts"]
+    },
+    "shell": {
+      "command": "/Users/username/.bun/bin/bun",
+      "args": ["run", "/path/to/claude-ts-mcps/src/shell.ts"]
+    },
+    "fetch": {
+      "command": "/Users/username/.bun/bin/bun",
+      "args": ["run", "/path/to/claude-ts-mcps/src/fetch.ts"],
+      "env": {
+        "CUSTOM_USER_AGENT": "YOUR_CUSTOM_USER_AGENT",
+        "IGNORE_ROBOTS_TXT": "false"
+      }
     }
+  }
 }
 ```
 
-Save this configuration as `claude_desktop_config.json` and configure Claude Desktop to use it.
+## 🔧 Available Tools
 
-### Multiple GitHub Account Support
+### File System Operations (`filesystem`)
 
-The GitHub MCP server supports switching between multiple GitHub accounts. You can set up multiple account profiles by configuring environment variables:
+- **Security**: Restricted to specified directories
+- **Capabilities**: Read, write, move files, create directories, search files
+- **Use Cases**: Code editing, project management, file analysis
 
-```json
-"env": {
-    "GITHUB_PERSONAL_ACCESS_TOKEN": "YOUR_DEFAULT_TOKEN",  // Default account (backward compatible)
-    "GITHUB_TOKEN_WORK": "YOUR_WORK_ACCOUNT_TOKEN",       // Work account profile
-    "GITHUB_TOKEN_PERSONAL": "YOUR_PERSONAL_ACCOUNT_TOKEN" // Personal account profile
-}
+### Git Integration (`git`)
+
+- **Full Git Workflow**: init, add, commit, branch, checkout, diff, log
+- **Repository Management**: status tracking, history viewing
+- **Use Cases**: Version control, code review, project history
+
+### GitHub API (`github`)
+
+- **Repository Management**: Create, search, manage repositories
+- **Issues & PRs**: Create, update, merge pull requests and issues
+- **Multi-Account Support**: Switch between work/personal accounts
+- **File Operations**: Direct file creation and updates via API
+
+### Web Search Tools
+
+#### AI-Powered Search (`sonar`)
+
+- **Natural Language Understanding**: Ask complex questions in plain language
+- **Synthesized Answers**: Get comprehensive responses with citations
+- **Multiple Models**:
+  - `sonar`: Fast general-purpose search
+  - `sonar-pro`: Complex queries with 200k context
+  - `sonar-reasoning`: Chain-of-thought reasoning
+  - `sonar-deep-research`: Comprehensive research mode
+- **Use Cases**: Research, fact-checking, learning about complex topics
+
+#### Traditional Search (`brave-search`)
+
+- **Web Search**: Keyword-based search returning multiple results
+- **Local Search**: Find businesses and services
+- **Use Cases**: Quick lookups, finding multiple sources, local information
+
+### Browser Automation (`puppeteer`)
+
+Our most comprehensive tool with 30+ functions organized into categories:
+
+#### 🧭 Navigation & Basic Interaction
+
+- Navigate to URLs, take screenshots
+- Click elements, fill forms, select options
+- Hover over elements, execute JavaScript
+
+#### ⏳ Wait Operations
+
+- Wait for elements, timeouts, navigation
+- Wait for custom JavaScript conditions
+
+#### ⌨️ Keyboard Operations
+
+- Press keys and key combinations
+- Type text with human-like delays
+
+#### 📄 Page Management
+
+- Set viewport size, go back/forward, reload
+- Generate PDFs, emulate devices
+
+#### 🍪 Cookies & Authentication
+
+- Set/get cookies, HTTP authentication
+
+#### ℹ️ Information Retrieval
+
+- Get page title, URL, HTML content
+- Extract text and detailed element information
+
+#### 🖼️ Frame Operations (Advanced)
+
+- List all frames, switch between frames
+- Execute JavaScript in specific frames
+- Search elements across all frames
+
+#### 🔧 Miscellaneous
+
+- Add script tags, clear input fields
+
+### Shell Commands (`shell`)
+
+- **Controlled Execution**: Allowlist-based command restrictions
+- **Development Tools**: npm, yarn, bun, git, node, python, tsc
+- **Security**: Prevents dangerous operations
+- **Use Cases**: Package management, build processes, script execution
+
+### URL Content Fetching (`fetch`)
+
+- **Content Extraction**: Convert HTML to clean Markdown
+- **Customization**: Custom user agents, robots.txt handling
+- **Use Cases**: Documentation reading, content analysis
+
+## 💡 Usage Examples
+
+### Development Workflow
+
+```
+You: "Create a new React component for user authentication"
+Claude: *Uses filesystem to create component file, npm to install dependencies*
+
+You: "Find examples of OAuth implementation on GitHub"
+Claude: *Uses GitHub search and fetch to find and analyze implementations*
+
+You: "Test the login form on our staging site"
+Claude: *Uses Puppeteer to navigate, fill forms, and verify functionality*
 ```
 
-To use a specific account profile in your requests, add the `account_profile` parameter to any GitHub API call:
+### Research and Analysis
 
-```json
-{
-    "owner": "username",
-    "repo": "repo-name",
-    "path": "path/to/file.txt",
-    "account_profile": "work"  // Will use the GITHUB_TOKEN_WORK environment variable
-}
+```
+You: "What are the latest best practices for Next.js 14 App Router?"
+Claude: *Uses Sonar for comprehensive research with citations*
+
+You: "Compare our package.json with similar projects"
+Claude: *Uses GitHub to find similar projects, filesystem to read local files*
 ```
 
-If no `account_profile` is specified, the default `GITHUB_PERSONAL_ACCESS_TOKEN` will be used.
+### Automation
 
-### Fetch Server Configuration
+```
+You: "Extract all product prices from this e-commerce site"
+Claude: *Uses Puppeteer to navigate pages, extract data, and compile results*
 
-The Fetch MCP server provides customization options through environment variables:
-
-```json
-"env": {
-    "CUSTOM_USER_AGENT": "YOUR_CUSTOM_USER_AGENT", // Optional: Specify a custom User-Agent header
-    "IGNORE_ROBOTS_TXT": "false"                   // Optional: Set to "true" to bypass robots.txt rules
-}
+You: "Monitor our GitHub issues and create a summary"
+Claude: *Uses GitHub API to fetch issues, analyze patterns, generate report*
 ```
 
-- `CUSTOM_USER_AGENT`: Allows you to define a specific User-Agent string for HTTP requests, which can be useful when certain websites restrict access based on the client identification.
-- `IGNORE_ROBOTS_TXT`: By default (false), the fetch server respects robots.txt rules that websites set to control web crawlers. Setting this to "true" disables this restriction, but should be used responsibly.
+## 🔒 Security Considerations
 
-## Usage
+- **File System**: Restricted to specified directories only
+- **Shell**: Commands must be in the allowlist
+- **Credentials**: Store API keys securely, use environment variables
+- **GitHub**: Use minimal token permissions
+- **Fetch**: Respects robots.txt by default
 
-1. Start Claude Desktop
-2. Load the configuration file
-3. Claude will now have access to the additional tools provided by these MCP servers
+## 🏗️ Project Structure
 
-## Development
+```
+claude-ts-mcps/
+├── src/
+│   ├── filesystem.ts      # File operations
+│   ├── git.ts             # Git integration
+│   ├── github.ts          # GitHub API (main entry)
+│   ├── github/            # GitHub implementation
+│   ├── brave-search.ts    # Brave search API
+│   ├── sonar.ts           # Perplexity Sonar API
+│   ├── sonar/             # Sonar types and utilities
+│   ├── puppeteer/         # Browser automation
+│   │   ├── index.ts       # Main entry point
+│   │   ├── tools/         # Tool definitions
+│   │   ├── handlers/      # Implementation
+│   │   └── state.ts       # State management
+│   ├── shell.ts           # Shell commands
+│   └── fetch.ts           # URL fetching
+└── package.json
+```
 
-Each MCP server is implemented as a standalone TypeScript file in the `src` directory:
-
-- `src/brave-search.ts`: Brave Search API integration
-- `src/filesystem.ts`: File system operations
-- `src/git.ts`: Git operations
-- `src/github.ts`: GitHub API integration for repository management, issues, PRs, etc.
-- `src/shell.ts`: Shell command execution
-- `src/puppeteer.ts`: Browser automation and web interaction
-- `src/fetch.ts`: URL content retrieval and HTML-to-Markdown conversion
-
-The GitHub MCP server has a modular structure:
-- `src/github/common/`: Common utilities, interfaces, and types
-- `src/github/operations/`: Implementation of various GitHub API operations
-- `src/github/tools/`: Tool definitions for the MCP server
+## 🚧 Development
 
 To add new functionality:
 
-1. Create a new TypeScript file in the `src` directory
-2. Implement the MCP server using the `@modelcontextprotocol/sdk`
-3. Add the new server to your Claude Desktop configuration
+1. Create a new TypeScript file in `src/`
+2. Implement the MCP server using `@modelcontextprotocol/sdk`
+3. Add tool definitions with clear descriptions
+4. Include proper error handling and validation
+5. Update the configuration file
 
-## Security Considerations
+### Testing Your Changes
 
-- The filesystem and shell servers include security measures to prevent unauthorized access
-- Always validate user input before executing commands
-- Be cautious when configuring allowed directories for filesystem access
-- Use the command allowlist for the shell server to restrict executable commands
-- The fetch server respects robots.txt directives by default to prevent scraping restricted sites
-- Store your GitHub personal access tokens securely and use appropriate token permissions
+```bash
+# Run a specific MCP server directly
+bun run src/your-new-server.ts
 
-## References
+# Test with Claude Desktop
+# Update your config and restart Claude
+```
 
-- [Model Context Protocol](https://modelcontextprotocol.io/)
-- [MCP Server Quickstart](https://modelcontextprotocol.io/quickstart/server)
+### Type Checking
+
+This project uses TypeScript for type safety. Several type checking commands are
+available:
+
+```bash
+# Standard type check (all strict checks enabled)
+bun run type-check
+
+# Type check with file watching for development
+bun run type-check:watch
+
+# Type check without unused variable warnings (good for development)
+bun run check:loose
+
+# Strict type check (same as type-check)
+bun run check:strict
+```
+
+#### Current Type Issues
+
+The project is functional but has some type issues that are being addressed:
+
+- Some Puppeteer APIs need proper type imports
+- A few cases of potential undefined values need guards
+- Unused variables in some files (can be ignored during development)
+
+These don't affect runtime functionality but will be cleaned up over time.
+
+### Code Formatting
+
+This project uses Prettier for consistent code formatting. The following
+commands are available:
+
+```bash
+# Format all files
+bun run format
+
+# Check formatting without making changes
+bun run format:check
+
+# Format only source files (src directory)
+bun run format:src
+
+# Check formatting of source files only
+bun run format:check:src
+
+# Run both formatting check and type check
+bun run lint
+
+# Fix formatting and run type check
+bun run lint:fix
+```
+
+#### Prettier Configuration
+
+The project uses the following Prettier settings (`.prettierrc`):
+
+- **Print Width**: 100 characters (80 for JSON/Markdown)
+- **Tab Width**: 2 spaces
+- **Semicolons**: Always
+- **Quotes**: Double quotes
+- **Trailing Commas**: All (ES5+)
+- **Arrow Parens**: Always include parentheses
+
+#### Formatting on Save
+
+For the best development experience, configure your editor to format on save:
+
+**VS Code**: Add to `.vscode/settings.json`:
+
+```json
+{
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode"
+}
+```
+
+**Other Editors**: Check your editor's documentation for Prettier integration.
+
+## 📚 Resources
+
+- [Model Context Protocol Documentation](https://modelcontextprotocol.io/)
+- [MCP SDK Reference](https://modelcontextprotocol.io/sdks)
 - [Anthropic Claude](https://www.anthropic.com/claude)
+- [Brave Search API](https://api.search.brave.com/app/documentation)
+- [Perplexity API](https://docs.perplexity.ai/)
 
-## License
+## 🤝 Contributing
+
+Contributions are welcome! Please:
+
+1. Fork the repository
+2. Create a feature branch
+3. Add tests for new functionality
+4. Submit a pull request
+
+## 📄 License
 
 [MIT License](LICENSE)
+
+## 🙏 Acknowledgments
+
+This project enables developers to leverage Claude's capabilities for
+development tasks while managing costs effectively through the Claude Pro
+subscription model.
