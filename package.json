@@ -15,5 +15,8 @@
     "minimatch": "^10.0.1",
     "puppeteer": "^22.3.0",
     "zod": "^3.24.2"
+  },
+  "bin": {
+    "puppeteer-mcp": "./src/puppeteer/index.ts"
   }
 }
