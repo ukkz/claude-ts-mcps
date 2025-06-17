@@ -2,7 +2,7 @@
 
 /**
  * Puppeteer MCP (Model Context Protocol) サーバー
- * 
+ *
  * このモジュールは、Puppeteerを使用してブラウザを操作するためのMCPサーバーを実装しています。
  * Webページのナビゲーション、スクリーンショット取得、要素のクリック、フォーム入力などの
  * 基本的なブラウザ操作とフレーム操作をAIモデルから利用可能にします。
@@ -24,13 +24,13 @@ import { TOOLS } from "./tools/index.js";
 import { handleToolCall } from "./handlers/index.js";
 
 // 状態管理のインポート
-import { 
+import {
   getBrowser,
   getConsoleLogs,
   getScreenshot,
   getScreenshotNames,
   getPdf,
-  getPdfNames
+  getPdfNames,
 } from "./state.js";
 
 // サーバーインスタンス
@@ -55,12 +55,12 @@ server.setRequestHandler(ListResourcesRequestSchema, async () => ({
       mimeType: "text/plain",
       name: "Browser console logs",
     },
-    ...getScreenshotNames().map(name => ({
+    ...getScreenshotNames().map((name) => ({
       uri: `screenshot://${name}`,
       mimeType: "image/png",
       name: `Screenshot: ${name}`,
     })),
-    ...getPdfNames().map(name => ({
+    ...getPdfNames().map((name) => ({
       uri: `pdf://${name}`,
       mimeType: "application/pdf",
       name: `PDF: ${name}`,
@@ -73,38 +73,52 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
 
   if (uri === "console://logs") {
     return {
-      contents: [{
-        uri,
-        mimeType: "text/plain",
-        text: getConsoleLogs().join("\n"),
-      }],
+      contents: [
+        {
+          uri,
+          mimeType: "text/plain",
+          text: getConsoleLogs().join("\n"),
+        },
+      ],
     };
   }
 
   if (uri.startsWith("screenshot://")) {
-    const name = uri.split("://")[1];
+    const parts = uri.split("://");
+    const name = parts[1];
+    if (!name) {
+      throw new Error(`Invalid screenshot URI: ${uri}`);
+    }
     const screenshot = getScreenshot(name);
     if (screenshot) {
       return {
-        contents: [{
-          uri,
-          mimeType: "image/png",
-          blob: screenshot,
-        }],
+        contents: [
+          {
+            uri,
+            mimeType: "image/png",
+            blob: screenshot,
+          },
+        ],
       };
     }
   }
 
   if (uri.startsWith("pdf://")) {
-    const name = uri.split("://")[1];
+    const parts = uri.split("://");
+    const name = parts[1];
+    if (!name) {
+      throw new Error(`Invalid PDF URI: ${uri}`);
+    }
     const pdf = getPdf(name);
     if (pdf) {
       return {
-        contents: [{
-          uri,
-          mimeType: "application/pdf",
-          blob: pdf,
-        }],
+        contents: [
+          {
+            uri,
+            mimeType: "application/pdf",
+            blob: pdf,
+          },
+        ],
       };
     }
   }
@@ -117,7 +131,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
 }));
 
 server.setRequestHandler(CallToolRequestSchema, async (request) =>
-  handleToolCall(request.params.name, request.params.arguments ?? {}, server)
+  handleToolCall(request.params.name, request.params.arguments ?? {}, server),
 );
 
 /**

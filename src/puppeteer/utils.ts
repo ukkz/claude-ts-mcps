@@ -1,11 +1,11 @@
 /**
  * Puppeteer MCP 共通ユーティリティ
- * 
+ *
  * このモジュールには、複数のハンドラーで使用される
  * 共通のユーティリティ関数が含まれています。
  */
 
-import puppeteer, { Page } from "puppeteer";
+import puppeteer, { Page, Frame } from "puppeteer";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { CallToolResult, TextContent, ImageContent } from "@modelcontextprotocol/sdk/types.js";
 import { getBrowser, setBrowser, setPage, getPage, addConsoleLog } from "./state.js";
@@ -15,10 +15,12 @@ import { getBrowser, setBrowser, setPage, getPage, addConsoleLog } from "./state
  */
 export function createErrorResponse(message: string): CallToolResult {
   return {
-    content: [{
-      type: "text",
-      text: message,
-    }],
+    content: [
+      {
+        type: "text",
+        text: message,
+      },
+    ],
     isError: true,
   };
 }
@@ -28,10 +30,12 @@ export function createErrorResponse(message: string): CallToolResult {
  */
 export function createSuccessResponse(message: string): CallToolResult {
   return {
-    content: [{
-      type: "text",
-      text: message,
-    }],
+    content: [
+      {
+        type: "text",
+        text: message,
+      },
+    ],
     isError: false,
   };
 }
@@ -42,7 +46,7 @@ export function createSuccessResponse(message: string): CallToolResult {
 export function createSuccessResponseWithImage(
   text: string,
   imageData: string,
-  mimeType: string = "image/png"
+  mimeType: string = "image/png",
 ): CallToolResult {
   return {
     content: [
@@ -67,28 +71,33 @@ export function createSuccessResponseWithImage(
 export async function ensureBrowser(server: Server): Promise<Page> {
   let browser = getBrowser();
   let page = getPage();
-  
+
   if (!browser) {
     // ブラウザを起動
     browser = await puppeteer.launch({ headless: false });
     setBrowser(browser);
-    
+
     const pages = await browser.pages();
     page = pages[0];
     setPage(page);
 
     // コンソールログのキャプチャ設定
-    page.on("console", (msg) => {
+    if (page) {
+      page.on("console", (msg) => {
       const logEntry = `[${msg.type()}] ${msg.text()}`;
       addConsoleLog(logEntry);
       server.notification({
         method: "notifications/resources/updated",
         params: { uri: "console://logs" },
+        });
       });
-    });
+    }
   }
-  
-  return page!;
+
+  if (!page) {
+    throw new Error("Failed to initialize browser page");
+  }
+  return page;
 }
 
 /**
@@ -108,19 +117,19 @@ export async function findFrame(
     frameSelector?: string;
     frameName?: string;
     frameIndex?: number;
-  }
+  },
 ): Promise<Frame | undefined> {
   if (args.frameSelector) {
     // CSSセレクタでフレーム要素を検索
     const frameElement = await page.$(args.frameSelector);
     if (!frameElement) return undefined;
-    
+
     const frameContent = await frameElement.contentFrame();
     return frameContent || undefined;
   } else if (args.frameName) {
     // 名前でフレームを検索
     const frames = page.frames();
-    return frames.find(f => f.name() === args.frameName);
+    return frames.find((f) => f.name() === args.frameName);
   } else if (args.frameIndex !== undefined) {
     // インデックスでフレームを検索
     const frames = page.frames();
@@ -129,7 +138,7 @@ export async function findFrame(
     }
     return frames[args.frameIndex];
   }
-  
+
   return undefined;
 }
 
