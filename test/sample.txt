@@ -1,0 +1,12 @@
+これはテスト用のファイルです。
+TODO: 何かを実装する
+FIXME: バグを修正する
+このファイルは検索機能のテストに使用されます。
+
+// コード例
+async function example() {
+  console.log("Hello, World!");
+}
+
+// TODO: エラーハンドリングを追加
+// FIXME: メモリリークの可能性

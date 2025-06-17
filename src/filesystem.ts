@@ -12,6 +12,8 @@ import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { createTwoFilesPatch } from "diff";
 import { minimatch } from "minimatch";
+import { createReadStream } from "fs";
+import { createInterface } from "readline";
 
 // Command line argument parsing
 const args = process.argv.slice(2);
@@ -146,6 +148,32 @@ const GetFileInfoArgsSchema = z.object({
   path: z.string(),
 });
 
+// Phase 1: 新規ツールのスキーマ定義
+const DeleteFileArgsSchema = z.object({
+  path: z.string(),
+});
+
+const CopyFileArgsSchema = z.object({
+  source: z.string(),
+  destination: z.string(),
+  overwrite: z.boolean().default(false),
+});
+
+const AppendFileArgsSchema = z.object({
+  path: z.string(),
+  content: z.string(),
+  ensureNewline: z.boolean().default(true).describe("末尾に改行を確保"),
+});
+
+const SearchContentArgsSchema = z.object({
+  path: z.string(),
+  pattern: z.string(),
+  filePattern: z.string().optional().describe("ファイル名パターン"),
+  regex: z.boolean().default(false).describe("正規表現として扱う"),
+  caseSensitive: z.boolean().default(true).describe("大文字小文字を区別"),
+  maxResults: z.number().default(100).describe("最大結果数"),
+});
+
 const ToolInputSchema = ToolSchema.shape.inputSchema;
 type ToolInput = z.infer<typeof ToolInputSchema>;
 
@@ -159,11 +187,19 @@ interface FileInfo {
   permissions: string;
 }
 
+// 検索結果の型定義
+interface SearchResult {
+  file: string;
+  line: number;
+  content: string;
+  match: string;
+}
+
 // Server setup
 const server = new Server(
   {
     name: "secure-filesystem-server",
-    version: "0.2.0",
+    version: "0.3.0",
   },
   {
     capabilities: {
@@ -334,6 +370,101 @@ async function applyFileEdits(
   return formattedDiff;
 }
 
+// Phase 1: ファイル内容検索機能
+async function searchContent(
+  rootPath: string,
+  pattern: string,
+  options: {
+    filePattern?: string;
+    regex?: boolean;
+    caseSensitive?: boolean;
+    maxResults?: number;
+  } = {}
+): Promise<SearchResult[]> {
+  const results: SearchResult[] = [];
+  const maxResults = options.maxResults || 100;
+  
+  // パターンを正規表現に変換
+  const searchRegex = options.regex
+    ? new RegExp(pattern, options.caseSensitive ? 'g' : 'gi')
+    : new RegExp(pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), options.caseSensitive ? 'g' : 'gi');
+
+  async function searchInFile(filePath: string) {
+    try {
+      const fileStream = createReadStream(filePath, { encoding: 'utf8' });
+      const rl = createInterface({
+        input: fileStream,
+        crlfDelay: Infinity
+      });
+
+      let lineNumber = 0;
+
+      for await (const line of rl) {
+        lineNumber++;
+
+        if (searchRegex.test(line)) {
+          const match = line.match(searchRegex)?.[0] || '';
+          results.push({
+            file: filePath,
+            line: lineNumber,
+            content: line.trim(),
+            match
+          });
+
+          if (results.length >= maxResults) {
+            rl.close();
+            return;
+          }
+        }
+      }
+    } catch (error) {
+      // バイナリファイルなどは無視
+    }
+  }
+
+  async function searchDirectory(dirPath: string) {
+    const entries = await fs.readdir(dirPath, { withFileTypes: true });
+
+    for (const entry of entries) {
+      const fullPath = path.join(dirPath, entry.name);
+
+      try {
+        await validatePath(fullPath);
+
+        if (entry.isDirectory()) {
+          await searchDirectory(fullPath);
+        } else if (entry.isFile()) {
+          // ファイルパターンチェック
+          if (!options.filePattern || entry.name.includes(options.filePattern)) {
+            // テキストファイルかどうかを簡易的にチェック
+            const ext = path.extname(entry.name).toLowerCase();
+            const textExtensions = ['.txt', '.md', '.js', '.ts', '.jsx', '.tsx', '.json', '.xml', '.html', '.css', '.scss', '.py', '.java', '.c', '.cpp', '.h', '.sh', '.yaml', '.yml'];
+            
+            if (textExtensions.includes(ext) || !ext) {
+              await searchInFile(fullPath);
+            }
+          }
+        }
+      } catch {
+        // アクセス権限がないパスは無視
+      }
+
+      if (results.length >= maxResults) {
+        return;
+      }
+    }
+  }
+
+  const stats = await fs.stat(rootPath);
+  if (stats.isDirectory()) {
+    await searchDirectory(rootPath);
+  } else {
+    await searchInFile(rootPath);
+  }
+
+  return results;
+}
+
 // Tool handlers
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
@@ -406,6 +537,31 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           properties: {},
           required: [],
         },
+      },
+      // Phase 1: 新規ツール
+      {
+        name: "delete_file",
+        description:
+          "Delete a file. This operation cannot be undone. Only works within allowed directories.",
+        inputSchema: zodToJsonSchema(DeleteFileArgsSchema) as ToolInput,
+      },
+      {
+        name: "copy_file",
+        description:
+          "Copy a file to a new location. Fails if destination exists unless overwrite is true. Both paths must be within allowed directories.",
+        inputSchema: zodToJsonSchema(CopyFileArgsSchema) as ToolInput,
+      },
+      {
+        name: "append_file",
+        description:
+          "Append content to the end of a file. Creates the file if it doesn't exist. Only works within allowed directories.",
+        inputSchema: zodToJsonSchema(AppendFileArgsSchema) as ToolInput,
+      },
+      {
+        name: "search_content",
+        description:
+          "Search for content within files. Supports plain text and regex search. Returns matching lines with file path and line number. Only searches within allowed directories.",
+        inputSchema: zodToJsonSchema(SearchContentArgsSchema) as ToolInput,
       },
     ],
   };
@@ -609,6 +765,100 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               text: `Allowed directories:\n${allowedDirectories.join("\n")}`,
             },
           ],
+        };
+      }
+
+      // Phase 1: 新規ツールの実装
+      case "delete_file": {
+        const parsed = DeleteFileArgsSchema.safeParse(args);
+        if (!parsed.success) {
+          throw new Error(`Invalid arguments for delete_file: ${parsed.error}`);
+        }
+        const validPath = await validatePath(parsed.data.path);
+        
+        // ファイルの存在確認
+        const stats = await fs.stat(validPath);
+        if (stats.isDirectory()) {
+          throw new Error("Cannot delete directory with delete_file. Use a different tool for directories.");
+        }
+        
+        await fs.unlink(validPath);
+        return {
+          content: [{ type: "text", text: `Successfully deleted file: ${parsed.data.path}` }],
+        };
+      }
+
+      case "copy_file": {
+        const parsed = CopyFileArgsSchema.safeParse(args);
+        if (!parsed.success) {
+          throw new Error(`Invalid arguments for copy_file: ${parsed.error}`);
+        }
+        const validSource = await validatePath(parsed.data.source);
+        const validDest = await validatePath(parsed.data.destination);
+        
+        // 宛先の存在確認
+        if (!parsed.data.overwrite) {
+          try {
+            await fs.access(validDest);
+            throw new Error(`Destination file already exists: ${parsed.data.destination}`);
+          } catch (error) {
+            // ファイルが存在しない場合は正常
+            if ((error as any).code !== 'ENOENT') {
+              throw error;
+            }
+          }
+        }
+        
+        await fs.copyFile(validSource, validDest);
+        return {
+          content: [{ type: "text", text: `Successfully copied ${parsed.data.source} to ${parsed.data.destination}` }],
+        };
+      }
+
+      case "append_file": {
+        const parsed = AppendFileArgsSchema.safeParse(args);
+        if (!parsed.success) {
+          throw new Error(`Invalid arguments for append_file: ${parsed.error}`);
+        }
+        const validPath = await validatePath(parsed.data.path);
+        
+        let content = parsed.data.content;
+        if (parsed.data.ensureNewline && !content.endsWith('\n')) {
+          content += '\n';
+        }
+        
+        await fs.appendFile(validPath, content, 'utf-8');
+        return {
+          content: [{ type: "text", text: `Successfully appended to ${parsed.data.path}` }],
+        };
+      }
+
+      case "search_content": {
+        const parsed = SearchContentArgsSchema.safeParse(args);
+        if (!parsed.success) {
+          throw new Error(`Invalid arguments for search_content: ${parsed.error}`);
+        }
+        const validPath = await validatePath(parsed.data.path);
+        
+        const results = await searchContent(validPath, parsed.data.pattern, {
+          filePattern: parsed.data.filePattern,
+          regex: parsed.data.regex,
+          caseSensitive: parsed.data.caseSensitive,
+          maxResults: parsed.data.maxResults,
+        });
+        
+        if (results.length === 0) {
+          return {
+            content: [{ type: "text", text: "No matches found" }],
+          };
+        }
+        
+        const formatted = results
+          .map(r => `${r.file}:${r.line}: ${r.content}`)
+          .join('\n');
+          
+        return {
+          content: [{ type: "text", text: formatted }],
         };
       }
 
