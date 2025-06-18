@@ -91,7 +91,7 @@ export async function handleWaitForTimeout(
 
     // 待機実行
     // waitForTimeoutは廃止されたため、Node.jsのsetTimeoutを使用
-    await new Promise(resolve => setTimeout(resolve, args.delay));
+    await new Promise((resolve) => setTimeout(resolve, args.delay));
 
     const actualDelay = Date.now() - startTime;
 

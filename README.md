@@ -213,7 +213,8 @@ Our most comprehensive tool with 30+ functions organized into categories:
 
 - **Controlled Execution**: Allowlist-based command restrictions
 - **Development Tools**: npm, yarn, bun, git, node, python, tsc
-- **Security**: Prevents dangerous operations
+- **Security**: Prevents dangerous operations, directory restrictions
+- **Features**: Auto-parsing of command strings, output size limits, timeout control
 - **Use Cases**: Package management, build processes, script execution
 
 ### URL Content Fetching (`fetch`)
@@ -282,7 +283,12 @@ claude-ts-mcps/
 │   │   ├── tools/         # Tool definitions
 │   │   ├── handlers/      # Implementation
 │   │   └── state.ts       # State management
-│   ├── shell.ts           # Shell commands
+│   ├── shell.ts           # Shell commands (entry)
+│   ├── shell/             # Shell implementation
+│   │   ├── index.ts       # Main logic
+│   │   ├── executor.ts    # Command execution
+│   │   ├── types.ts       # Type definitions
+│   │   └── ...            # Other modules
 │   └── fetch.ts           # URL fetching
 └── package.json
 ```

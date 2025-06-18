@@ -19,7 +19,6 @@ import zlib from "zlib";
 import { pipeline } from "stream/promises";
 import { exec } from "child_process";
 
-
 const execAsync = promisify(exec);
 
 // Command line argument parsing
@@ -107,14 +106,18 @@ async function validatePath(requestedPath: string): Promise<string> {
 const ReadFileArgsSchema = z.object({
   path: z.string(),
   encoding: z.enum(["utf-8", "base64", "hex"]).default("utf-8"),
-  range: z.object({
-    start: z.number().optional(),
-    end: z.number().optional(),
-    lines: z.object({
-      from: z.number().positive(),
-      to: z.number().positive()
-    }).optional()
-  }).optional()
+  range: z
+    .object({
+      start: z.number().optional(),
+      end: z.number().optional(),
+      lines: z
+        .object({
+          from: z.number().positive(),
+          to: z.number().positive(),
+        })
+        .optional(),
+    })
+    .optional(),
 });
 
 const ReadMultipleFilesArgsSchema = z.object({
@@ -222,7 +225,7 @@ const BatchOperationsArgsSchema = z.object({
 // Phase 3: ファイル監視のスキーマ定義（簡易実装）
 const WatchFileArgsSchema = z.object({
   path: z.string(),
-  events: z.array(z.enum(['change', 'rename', 'delete'])).default(['change']),
+  events: z.array(z.enum(["change", "rename", "delete"])).default(["change"]),
   recursive: z.boolean().default(false),
   // MCPの制約により、監視は1回のチェックのみ
   since: z.number().optional().describe("この時刻以降の変更を検出（ミリ秒）"),
@@ -354,7 +357,7 @@ interface RollbackInfo {
 
 async function executeBatchOperations(
   operations: z.infer<typeof BatchOperationSchema>[],
-  options: { parallel?: boolean; transactional?: boolean } = {}
+  options: { parallel?: boolean; transactional?: boolean } = {},
 ): Promise<BatchOperationResult[]> {
   const results: BatchOperationResult[] = [];
   const rollbackStack: RollbackInfo[] = [];
@@ -363,7 +366,9 @@ async function executeBatchOperations(
   const isReadOperation = (type: string) => ["read"].includes(type);
 
   // 単一操作の実行
-  const executeOperation = async (op: z.infer<typeof BatchOperationSchema>): Promise<BatchOperationResult> => {
+  const executeOperation = async (
+    op: z.infer<typeof BatchOperationSchema>,
+  ): Promise<BatchOperationResult> => {
     try {
       let result: any;
 
@@ -379,7 +384,10 @@ async function executeBatchOperations(
           if (options.transactional) {
             try {
               const originalContent = await fs.readFile(validPath, "utf-8");
-              rollbackStack.push({ type: "write", params: { path: op.params.path, content: originalContent } });
+              rollbackStack.push({
+                type: "write",
+                params: { path: op.params.path, content: originalContent },
+              });
             } catch {
               // ファイルが存在しない場合は削除でロールバック
               rollbackStack.push({ type: "delete", params: { path: op.params.path } });
@@ -403,7 +411,10 @@ async function executeBatchOperations(
           const validSource = await validatePath(op.params.source);
           const validDest = await validatePath(op.params.destination);
           if (options.transactional) {
-            rollbackStack.push({ type: "move", params: { source: op.params.destination, destination: op.params.source } });
+            rollbackStack.push({
+              type: "move",
+              params: { source: op.params.destination, destination: op.params.source },
+            });
           }
           await fs.rename(validSource, validDest);
           result = `Moved ${op.params.source} to ${op.params.destination}`;
@@ -424,7 +435,10 @@ async function executeBatchOperations(
           if (options.transactional) {
             try {
               const originalContent = await fs.readFile(validPath, "utf-8");
-              rollbackStack.push({ type: "write", params: { path: op.params.path, content: originalContent } });
+              rollbackStack.push({
+                type: "write",
+                params: { path: op.params.path, content: originalContent },
+              });
             } catch {
               rollbackStack.push({ type: "delete", params: { path: op.params.path } });
             }
@@ -452,7 +466,11 @@ async function executeBatchOperations(
     console.error("Performing rollback due to transaction failure...");
     for (const rollback of rollbackStack.reverse()) {
       try {
-        await executeOperation({ type: rollback.type as any, params: rollback.params, continueOnError: false });
+        await executeOperation({
+          type: rollback.type as any,
+          params: rollback.params,
+          continueOnError: false,
+        });
       } catch (error) {
         console.error(`Rollback failed for ${rollback.type}:`, error);
       }
@@ -462,8 +480,8 @@ async function executeBatchOperations(
   try {
     if (options.parallel) {
       // 並列実行（読み取り操作のみ）
-      const readOps = operations.filter(op => isReadOperation(op.type));
-      const otherOps = operations.filter(op => !isReadOperation(op.type));
+      const readOps = operations.filter((op) => isReadOperation(op.type));
+      const otherOps = operations.filter((op) => !isReadOperation(op.type));
 
       // 読み取り操作を並列実行
       const readResults = await Promise.all(readOps.map(executeOperation));
@@ -513,7 +531,7 @@ async function executeBatchOperations(
 // Phase 3: ファイル監視機能（簡易実装）
 interface FileChangeInfo {
   path: string;
-  type: 'change' | 'rename' | 'delete' | 'none';
+  type: "change" | "rename" | "delete" | "none";
   oldStats?: FileInfo;
   newStats?: FileInfo;
 }
@@ -521,13 +539,13 @@ interface FileChangeInfo {
 async function checkFileChanges(
   filePath: string,
   options: {
-    events?: ('change' | 'rename' | 'delete')[];
+    events?: ("change" | "rename" | "delete")[];
     recursive?: boolean;
     since?: number;
-  } = {}
+  } = {},
 ): Promise<FileChangeInfo[]> {
   const changes: FileChangeInfo[] = [];
-  const events = options.events || ['change'];
+  const events = options.events || ["change"];
   const since = options.since || Date.now() - 1000; // デフォルトは1秒前
 
   async function checkSingleFile(path: string): Promise<FileChangeInfo | null> {
@@ -536,10 +554,10 @@ async function checkFileChanges(
       const modifiedTime = stats.modified.getTime();
 
       if (modifiedTime > since) {
-        if (events.includes('change')) {
+        if (events.includes("change")) {
           return {
             path,
-            type: 'change',
+            type: "change",
             newStats: stats,
           };
         }
@@ -547,10 +565,10 @@ async function checkFileChanges(
       return null;
     } catch (error) {
       // ファイルが存在しない場合
-      if (events.includes('delete')) {
+      if (events.includes("delete")) {
         return {
           path,
-          type: 'delete',
+          type: "delete",
         };
       }
       return null;
@@ -599,10 +617,10 @@ async function checkFileChanges(
 async function compressFiles(
   files: string[],
   outputPath: string,
-  format: "zip" | "tar" | "tar.gz" = "zip"
+  format: "zip" | "tar" | "tar.gz" = "zip",
 ): Promise<string> {
   // 入力ファイルの検証
-  const validFiles = await Promise.all(files.map(f => validatePath(f)));
+  const validFiles = await Promise.all(files.map((f) => validatePath(f)));
   const validOutput = await validatePath(outputPath);
 
   // フォーマットに応じた圧縮コマンドを実行
@@ -610,19 +628,19 @@ async function compressFiles(
     switch (format) {
       case "zip": {
         // zipコマンドを使用
-        const fileList = validFiles.map(f => `"${f}"`).join(" ");
+        const fileList = validFiles.map((f) => `"${f}"`).join(" ");
         await execAsync(`zip -r "${validOutput}" ${fileList}`);
         break;
       }
       case "tar": {
         // tarコマンドを使用
-        const fileList = validFiles.map(f => `"${f}"`).join(" ");
+        const fileList = validFiles.map((f) => `"${f}"`).join(" ");
         await execAsync(`tar -cf "${validOutput}" ${fileList}`);
         break;
       }
       case "tar.gz": {
         // tar.gz形式
-        const fileList = validFiles.map(f => `"${f}"`).join(" ");
+        const fileList = validFiles.map((f) => `"${f}"`).join(" ");
         await execAsync(`tar -czf "${validOutput}" ${fileList}`);
         break;
       }
@@ -643,21 +661,23 @@ async function compressFiles(
         const input = createReadStream(firstFile);
         const output = createWriteStream(validOutput);
         const gzip = zlib.createGzip();
-        
+
         await pipeline(input, gzip, output);
         return `Successfully created gzip archive: ${outputPath}`;
       }
     }
-    
+
     const errorMsg = error instanceof Error ? error.message : String(error);
-    throw new Error(`Compression failed: ${errorMsg}. Make sure required tools (zip/tar) are installed.`);
+    throw new Error(
+      `Compression failed: ${errorMsg}. Make sure required tools (zip/tar) are installed.`,
+    );
   }
 }
 
 async function extractArchive(
   archivePath: string,
   destinationPath: string,
-  overwrite: boolean = false
+  overwrite: boolean = false,
 ): Promise<string> {
   const validArchive = await validatePath(archivePath);
   const validDest = await validatePath(destinationPath);
@@ -689,7 +709,7 @@ async function extractArchive(
           const input = createReadStream(validArchive);
           const output = createWriteStream(outputFile);
           const gunzip = zlib.createGunzip();
-          
+
           await pipeline(input, gunzip, output);
         }
         break;
@@ -701,7 +721,9 @@ async function extractArchive(
     return `Successfully extracted archive to: ${destinationPath}`;
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
-    throw new Error(`Extraction failed: ${errorMsg}. Make sure required tools (unzip/tar) are installed.`);
+    throw new Error(
+      `Extraction failed: ${errorMsg}. Make sure required tools (unzip/tar) are installed.`,
+    );
   }
 }
 
@@ -739,7 +761,7 @@ async function applyFileEdits(
 
   // Apply edits sequentially
   let modifiedContent = content;
-  
+
   for (const edit of edits) {
     // 各編集タイプに応じた処理
     if (edit.type === "replace" || !edit.type) {
@@ -792,27 +814,28 @@ async function applyFileEdits(
       if (!matchFound) {
         throw new Error(`Could not find exact match for edit:\n${edit.oldText}`);
       }
-      
     } else if (edit.type === "line") {
       // 行番号ベースの編集
       const lines = modifiedContent.split("\n");
       const lineIndex = edit.lineNumber - 1; // 0-based index
-      
+
       if (lineIndex < 0 || lineIndex > lines.length) {
         throw new Error(`Line number ${edit.lineNumber} is out of range (1-${lines.length})`);
       }
-      
+
       switch (edit.action) {
         case "replace":
           if (edit.content === undefined) {
             throw new Error("Content is required for replace action");
           }
           if (lineIndex >= lines.length) {
-            throw new Error(`Cannot replace line ${edit.lineNumber}: file has only ${lines.length} lines`);
+            throw new Error(
+              `Cannot replace line ${edit.lineNumber}: file has only ${lines.length} lines`,
+            );
           }
           lines[lineIndex] = edit.content;
           break;
-          
+
         case "insert":
           if (edit.content === undefined) {
             throw new Error("Content is required for insert action");
@@ -820,20 +843,21 @@ async function applyFileEdits(
           // insertは指定行の前に挿入
           lines.splice(lineIndex, 0, edit.content);
           break;
-          
+
         case "delete":
           if (lineIndex >= lines.length) {
-            throw new Error(`Cannot delete line ${edit.lineNumber}: file has only ${lines.length} lines`);
+            throw new Error(
+              `Cannot delete line ${edit.lineNumber}: file has only ${lines.length} lines`,
+            );
           }
           lines.splice(lineIndex, 1);
           break;
-          
+
         default:
           throw new Error(`Unknown line action: ${edit.action}`);
       }
-      
+
       modifiedContent = lines.join("\n");
-      
     } else if (edit.type === "regex") {
       // 正規表現による置換
       try {
@@ -873,22 +897,25 @@ async function searchContent(
     regex?: boolean;
     caseSensitive?: boolean;
     maxResults?: number;
-  } = {}
+  } = {},
 ): Promise<SearchResult[]> {
   const results: SearchResult[] = [];
   const maxResults = options.maxResults || 100;
-  
+
   // パターンを正規表現に変換
   const searchRegex = options.regex
-    ? new RegExp(pattern, options.caseSensitive ? 'g' : 'gi')
-    : new RegExp(pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), options.caseSensitive ? 'g' : 'gi');
+    ? new RegExp(pattern, options.caseSensitive ? "g" : "gi")
+    : new RegExp(
+        pattern.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+        options.caseSensitive ? "g" : "gi",
+      );
 
   async function searchInFile(filePath: string) {
     try {
-      const fileStream = createReadStream(filePath, { encoding: 'utf8' });
+      const fileStream = createReadStream(filePath, { encoding: "utf8" });
       const rl = createInterface({
         input: fileStream,
-        crlfDelay: Infinity
+        crlfDelay: Infinity,
       });
 
       let lineNumber = 0;
@@ -897,12 +924,12 @@ async function searchContent(
         lineNumber++;
 
         if (searchRegex.test(line)) {
-          const match = line.match(searchRegex)?.[0] || '';
+          const match = line.match(searchRegex)?.[0] || "";
           results.push({
             file: filePath,
             line: lineNumber,
             content: line.trim(),
-            match
+            match,
           });
 
           if (results.length >= maxResults) {
@@ -932,8 +959,28 @@ async function searchContent(
           if (!options.filePattern || entry.name.includes(options.filePattern)) {
             // テキストファイルかどうかを簡易的にチェック
             const ext = path.extname(entry.name).toLowerCase();
-            const textExtensions = ['.txt', '.md', '.js', '.ts', '.jsx', '.tsx', '.json', '.xml', '.html', '.css', '.scss', '.py', '.java', '.c', '.cpp', '.h', '.sh', '.yaml', '.yml'];
-            
+            const textExtensions = [
+              ".txt",
+              ".md",
+              ".js",
+              ".ts",
+              ".jsx",
+              ".tsx",
+              ".json",
+              ".xml",
+              ".html",
+              ".css",
+              ".scss",
+              ".py",
+              ".java",
+              ".c",
+              ".cpp",
+              ".h",
+              ".sh",
+              ".yaml",
+              ".yml",
+            ];
+
             if (textExtensions.includes(ext) || !ext) {
               await searchInFile(fullPath);
             }
@@ -982,7 +1029,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           readOnlyHint: true,
           idempotentHint: true,
           openWorldHint: false,
-          costHint: "low"
+          costHint: "low",
         } as ToolAnnotations,
       },
       {
@@ -995,7 +1042,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           readOnlyHint: true,
           idempotentHint: true,
           openWorldHint: false,
-          costHint: "low"
+          costHint: "low",
         } as ToolAnnotations,
       },
       {
@@ -1008,7 +1055,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           readOnlyHint: false,
           idempotentHint: false,
           openWorldHint: false,
-          costHint: "low"
+          costHint: "low",
         } as ToolAnnotations,
       },
       {
@@ -1021,7 +1068,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           readOnlyHint: false,
           idempotentHint: false,
           openWorldHint: false,
-          costHint: "low"
+          costHint: "low",
         } as ToolAnnotations,
       },
       {
@@ -1034,7 +1081,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           readOnlyHint: false,
           idempotentHint: true,
           openWorldHint: false,
-          costHint: "low"
+          costHint: "low",
         } as ToolAnnotations,
       },
       {
@@ -1047,7 +1094,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           readOnlyHint: true,
           idempotentHint: true,
           openWorldHint: false,
-          costHint: "low"
+          costHint: "low",
         } as ToolAnnotations,
       },
       {
@@ -1060,7 +1107,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           readOnlyHint: true,
           idempotentHint: true,
           openWorldHint: false,
-          costHint: "medium"
+          costHint: "medium",
         } as ToolAnnotations,
       },
       {
@@ -1073,7 +1120,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           readOnlyHint: false,
           idempotentHint: false,
           openWorldHint: false,
-          costHint: "low"
+          costHint: "low",
         } as ToolAnnotations,
       },
       {
@@ -1086,7 +1133,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           readOnlyHint: true,
           idempotentHint: true,
           openWorldHint: false,
-          costHint: "medium"
+          costHint: "medium",
         } as ToolAnnotations,
       },
       {
@@ -1099,7 +1146,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           readOnlyHint: true,
           idempotentHint: true,
           openWorldHint: false,
-          costHint: "low"
+          costHint: "low",
         } as ToolAnnotations,
       },
       {
@@ -1115,7 +1162,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           readOnlyHint: true,
           idempotentHint: true,
           openWorldHint: false,
-          costHint: "low"
+          costHint: "low",
         } as ToolAnnotations,
       },
       // Phase 1: 新規ツール
@@ -1129,7 +1176,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           readOnlyHint: false,
           idempotentHint: true,
           openWorldHint: false,
-          costHint: "low"
+          costHint: "low",
         } as ToolAnnotations,
       },
       {
@@ -1142,7 +1189,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           readOnlyHint: false,
           idempotentHint: false,
           openWorldHint: false,
-          costHint: "low"
+          costHint: "low",
         } as ToolAnnotations,
       },
       {
@@ -1155,7 +1202,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           readOnlyHint: false,
           idempotentHint: false,
           openWorldHint: false,
-          costHint: "low"
+          costHint: "low",
         } as ToolAnnotations,
       },
       {
@@ -1168,7 +1215,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           readOnlyHint: true,
           idempotentHint: true,
           openWorldHint: false,
-          costHint: "medium"
+          costHint: "medium",
         } as ToolAnnotations,
       },
       // Phase 3: 新規ツール
@@ -1182,7 +1229,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           readOnlyHint: false,
           idempotentHint: false,
           openWorldHint: false,
-          costHint: "medium"
+          costHint: "medium",
         } as ToolAnnotations,
       },
       {
@@ -1195,7 +1242,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           readOnlyHint: true,
           idempotentHint: false,
           openWorldHint: false,
-          costHint: "low"
+          costHint: "low",
         } as ToolAnnotations,
       },
       {
@@ -1208,7 +1255,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           readOnlyHint: false,
           idempotentHint: false,
           openWorldHint: false,
-          costHint: "medium"
+          costHint: "medium",
         } as ToolAnnotations,
       },
       {
@@ -1221,7 +1268,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           readOnlyHint: false,
           idempotentHint: false,
           openWorldHint: false,
-          costHint: "medium"
+          costHint: "medium",
         } as ToolAnnotations,
       },
     ],
@@ -1239,7 +1286,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new Error(`Invalid arguments for read_file: ${parsed.error}`);
         }
         const validPath = await validatePath(parsed.data.path);
-        
+
         // エンコーディングに応じた読み込み
         let content: string;
         if (parsed.data.encoding === "base64" || parsed.data.encoding === "hex") {
@@ -1248,34 +1295,35 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         } else {
           content = await fs.readFile(validPath, "utf-8");
         }
-        
+
         // 範囲指定がある場合の処理
         if (parsed.data.range) {
           if (parsed.data.range.lines) {
             // 行範囲指定
             const lines = content.split("\n");
             const { from, to } = parsed.data.range.lines;
-            
+
             if (from < 1 || to < from || from > lines.length) {
               throw new Error(`Invalid line range: ${from}-${to} (file has ${lines.length} lines)`);
             }
-            
+
             const selectedLines = lines.slice(from - 1, Math.min(to, lines.length));
             content = selectedLines.join("\n");
-            
           } else if (parsed.data.range.start !== undefined || parsed.data.range.end !== undefined) {
             // バイト範囲指定
             const start = parsed.data.range.start || 0;
             const end = parsed.data.range.end || content.length;
-            
+
             if (start < 0 || end < start || start > content.length) {
-              throw new Error(`Invalid byte range: ${start}-${end} (content length: ${content.length})`);
+              throw new Error(
+                `Invalid byte range: ${start}-${end} (content length: ${content.length})`,
+              );
             }
-            
+
             content = content.slice(start, end);
           }
         }
-        
+
         return {
           content: [{ type: "text", text: content }],
         };
@@ -1472,13 +1520,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new Error(`Invalid arguments for delete_file: ${parsed.error}`);
         }
         const validPath = await validatePath(parsed.data.path);
-        
+
         // ファイルの存在確認
         const stats = await fs.stat(validPath);
         if (stats.isDirectory()) {
-          throw new Error("Cannot delete directory with delete_file. Use a different tool for directories.");
+          throw new Error(
+            "Cannot delete directory with delete_file. Use a different tool for directories.",
+          );
         }
-        
+
         await fs.unlink(validPath);
         return {
           content: [{ type: "text", text: `Successfully deleted file: ${parsed.data.path}` }],
@@ -1492,7 +1542,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }
         const validSource = await validatePath(parsed.data.source);
         const validDest = await validatePath(parsed.data.destination);
-        
+
         // 宛先の存在確認
         if (!parsed.data.overwrite) {
           try {
@@ -1500,15 +1550,20 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             throw new Error(`Destination file already exists: ${parsed.data.destination}`);
           } catch (error) {
             // ファイルが存在しない場合は正常
-            if ((error as any).code !== 'ENOENT') {
+            if ((error as any).code !== "ENOENT") {
               throw error;
             }
           }
         }
-        
+
         await fs.copyFile(validSource, validDest);
         return {
-          content: [{ type: "text", text: `Successfully copied ${parsed.data.source} to ${parsed.data.destination}` }],
+          content: [
+            {
+              type: "text",
+              text: `Successfully copied ${parsed.data.source} to ${parsed.data.destination}`,
+            },
+          ],
         };
       }
 
@@ -1518,13 +1573,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new Error(`Invalid arguments for append_file: ${parsed.error}`);
         }
         const validPath = await validatePath(parsed.data.path);
-        
+
         let content = parsed.data.content;
-        if (parsed.data.ensureNewline && !content.endsWith('\n')) {
-          content += '\n';
+        if (parsed.data.ensureNewline && !content.endsWith("\n")) {
+          content += "\n";
         }
-        
-        await fs.appendFile(validPath, content, 'utf-8');
+
+        await fs.appendFile(validPath, content, "utf-8");
         return {
           content: [{ type: "text", text: `Successfully appended to ${parsed.data.path}` }],
         };
@@ -1536,24 +1591,22 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new Error(`Invalid arguments for search_content: ${parsed.error}`);
         }
         const validPath = await validatePath(parsed.data.path);
-        
+
         const results = await searchContent(validPath, parsed.data.pattern, {
           filePattern: parsed.data.filePattern,
           regex: parsed.data.regex,
           caseSensitive: parsed.data.caseSensitive,
           maxResults: parsed.data.maxResults,
         });
-        
+
         if (results.length === 0) {
           return {
             content: [{ type: "text", text: "No matches found" }],
           };
         }
-        
-        const formatted = results
-          .map(r => `${r.file}:${r.line}: ${r.content}`)
-          .join('\n');
-          
+
+        const formatted = results.map((r) => `${r.file}:${r.line}: ${r.content}`).join("\n");
+
         return {
           content: [{ type: "text", text: formatted }],
         };
@@ -1565,22 +1618,21 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (!parsed.success) {
           throw new Error(`Invalid arguments for batch_operations: ${parsed.error}`);
         }
-        
-        const results = await executeBatchOperations(
-          parsed.data.operations,
-          {
-            parallel: parsed.data.parallel,
-            transactional: parsed.data.transactional,
-          }
-        );
-        
+
+        const results = await executeBatchOperations(parsed.data.operations, {
+          parallel: parsed.data.parallel,
+          transactional: parsed.data.transactional,
+        });
+
         // 結果をフォーマット
-        const formatted = results.map((r, i) => {
-          const status = r.success ? "✓" : "✗";
-          const detail = r.success ? r.result : `Error: ${r.error}`;
-          return `[${i + 1}] ${status} ${r.operation.type}: ${detail}`;
-        }).join('\n');
-        
+        const formatted = results
+          .map((r, i) => {
+            const status = r.success ? "✓" : "✗";
+            const detail = r.success ? r.result : `Error: ${r.error}`;
+            return `[${i + 1}] ${status} ${r.operation.type}: ${detail}`;
+          })
+          .join("\n");
+
         return {
           content: [{ type: "text", text: formatted }],
         };
@@ -1591,27 +1643,29 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (!parsed.success) {
           throw new Error(`Invalid arguments for watch_file: ${parsed.error}`);
         }
-        
+
         const changes = await checkFileChanges(parsed.data.path, {
           events: parsed.data.events,
           recursive: parsed.data.recursive,
           since: parsed.data.since,
         });
-        
+
         if (changes.length === 0) {
           return {
             content: [{ type: "text", text: "No changes detected" }],
           };
         }
-        
-        const formatted = changes.map(c => {
-          let detail = `${c.type}: ${c.path}`;
-          if (c.newStats) {
-            detail += ` (modified: ${c.newStats.modified.toISOString()})`;
-          }
-          return detail;
-        }).join('\n');
-        
+
+        const formatted = changes
+          .map((c) => {
+            let detail = `${c.type}: ${c.path}`;
+            if (c.newStats) {
+              detail += ` (modified: ${c.newStats.modified.toISOString()})`;
+            }
+            return detail;
+          })
+          .join("\n");
+
         return {
           content: [{ type: "text", text: formatted }],
         };
@@ -1622,13 +1676,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (!parsed.success) {
           throw new Error(`Invalid arguments for compress_files: ${parsed.error}`);
         }
-        
+
         const result = await compressFiles(
           parsed.data.files,
           parsed.data.output,
-          parsed.data.format
+          parsed.data.format,
         );
-        
+
         return {
           content: [{ type: "text", text: result }],
         };
@@ -1639,13 +1693,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (!parsed.success) {
           throw new Error(`Invalid arguments for extract_archive: ${parsed.error}`);
         }
-        
+
         const result = await extractArchive(
           parsed.data.archive,
           parsed.data.destination,
-          parsed.data.overwrite
+          parsed.data.overwrite,
         );
-        
+
         return {
           content: [{ type: "text", text: result }],
         };

@@ -84,11 +84,11 @@ export async function ensureBrowser(server: Server): Promise<Page> {
     // コンソールログのキャプチャ設定
     if (page) {
       page.on("console", (msg) => {
-      const logEntry = `[${msg.type()}] ${msg.text()}`;
-      addConsoleLog(logEntry);
-      server.notification({
-        method: "notifications/resources/updated",
-        params: { uri: "console://logs" },
+        const logEntry = `[${msg.type()}] ${msg.text()}`;
+        addConsoleLog(logEntry);
+        server.notification({
+          method: "notifications/resources/updated",
+          params: { uri: "console://logs" },
         });
       });
     }
