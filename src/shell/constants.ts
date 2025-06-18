@@ -64,9 +64,11 @@ export const DEFAULT_TAIL_BUFFER_SIZE = 10240;
 export const TIMEOUT_EXIT_CODE = 124;
 
 /**
- * ストリーミングモードのデフォルトタイムアウト（3秒）
+ * ストリーミングモードのデフォルトタイムアウト（10秒）
+ * 通常のコマンドが完了するのに十分な時間を確保しつつ、
+ * 長時間実行されるコマンドの出力を適切なタイミングで取得
  */
-export const DEFAULT_STREAMING_TIMEOUT = 3000;
+export const DEFAULT_STREAMING_TIMEOUT = 10000;
 
 /**
  * ストリーミングモードのデフォルトバッファサイズ（100KB）

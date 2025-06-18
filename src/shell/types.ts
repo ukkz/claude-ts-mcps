@@ -34,9 +34,9 @@ export interface ExecuteOptions {
   timeout?: number;
   /** 最大出力サイズ（MB） */
   maxOutputSizeMB?: number;
-  /** ストリーミングモードを有効にする */
+  /** ストリーミングモード（デフォルト: true） */
   streaming?: boolean;
-  /** ストリーミング時の初回応答タイムアウト（ミリ秒）デフォルト: 3000 */
+  /** ストリーミング時の出力返却タイムアウト（ミリ秒）デフォルト: 10000 */
   streamingTimeout?: number;
   /** ストリーミング時の出力バッファサイズ（KB）デフォルト: 100 */
   streamingBufferSizeKB?: number;

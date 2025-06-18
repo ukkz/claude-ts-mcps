@@ -5,6 +5,7 @@
 import { z } from "zod";
 import type { ShellExecutor } from "./executor";
 import { formatCommandError, formatUnexpectedError } from "./errors";
+import { DEFAULT_STREAMING_TIMEOUT, DEFAULT_STREAMING_BUFFER_SIZE_KB } from "./constants";
 
 /**
  * ツール入力スキーマの定義
@@ -34,11 +35,12 @@ export const ShellExecuteSchema = z.object({
   streaming: z
     .boolean()
     .optional()
-    .describe("Enable streaming mode for long-running commands. Returns partial output after timeout or buffer limit"),
+    .default(true)
+    .describe("Streaming mode (default: true). Returns partial output for long-running commands while allowing normal commands to complete as usual"),
   streamingTimeout: z
     .number()
     .optional()
-    .describe("Timeout for streaming mode in milliseconds (default: 3000)"),
+    .describe("Timeout for streaming mode in milliseconds (default: 10000)"),
   streamingBufferSizeKB: z
     .number()
     .optional()
@@ -94,7 +96,7 @@ export function createExecuteHandler(executor: ShellExecutor, baseDirectory: str
       if (result.streamingResult) {
         responseText = [
           "[STREAMING MODE - Process still running]",
-          `Partial output returned after ${args.streamingTimeout || 3000}ms or ${args.streamingBufferSizeKB || 100}KB buffer`,
+          `Partial output returned after ${args.streamingTimeout || DEFAULT_STREAMING_TIMEOUT}ms or ${args.streamingBufferSizeKB || DEFAULT_STREAMING_BUFFER_SIZE_KB}KB buffer`,
           "",
           "=== STDOUT ===",
           result.stdout || "(no output yet)",
