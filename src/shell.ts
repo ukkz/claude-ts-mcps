@@ -1,6 +1,5 @@
 /**
- * シェル操作を可能にするModel Context Protocol(MCP)サーバーの実装
- * このサーバーは、シェルコマンド実行機能を提供します
+ * MCP server for shell command execution
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -12,7 +11,7 @@ import * as fs from "fs";
 
 import { parseArgs } from "node:util";
 
-// コマンドライン引数の解析
+// Parse command line arguments
 const { values } = parseArgs({
   options: {
     baseDir: {
@@ -34,7 +33,7 @@ const { values } = parseArgs({
 const baseDirectory = values.baseDir || process.cwd();
 const verbose = values.verbose;
 
-// 詳細度フラグに基づいてログレベルを設定
+// Set log level based on verbosity
 const logLevel = verbose ? "debug" : "info";
 function log(level: string, ...args: any[]) {
   if (level === "debug" && logLevel !== "debug") return;
@@ -42,22 +41,21 @@ function log(level: string, ...args: any[]) {
 }
 
 /**
- * ユーザーのシェル環境変数を読み込む関数
- * zshrcやbashrcから環境変数を抽出します
+ * Load user shell environment variables from shell rc files
  */
 function loadUserShellEnvironment(): Record<string, string> {
   let envVars: Record<string, string> = {};
 
   try {
-    // デフォルトのシェルを検出
+    // Detect default shell
     const shell = process.env.SHELL || "/bin/bash";
     const shellName = path.basename(shell);
 
     log("info", `Detected shell: ${shellName}`);
 
-    // シェルタイプに基づいてコマンドを決定（profileFilesは直接使用しない）
+    // Determine command based on shell type
 
-    // シェルを使って環境変数をエクスポート
+    // Export environment variables using shell
     let command: string = '';
     if (shellName === "zsh") {
       command =
@@ -73,10 +71,10 @@ function loadUserShellEnvironment(): Record<string, string> {
       return process.env as Record<string, string>;
     }
 
-    // 環境変数を取得
+    // Get environment variables
     const envOutput = execSync(command, { encoding: "utf8" });
 
-    // 出力を解析して環境変数のマップを作成
+    // Parse output to create environment variable map
     envOutput.split("\n").forEach((line) => {
       const match = line.match(/^([^=]+)=(.*)$/);
       if (match) {
@@ -102,11 +100,70 @@ function loadUserShellEnvironment(): Record<string, string> {
   }
 }
 
-// ユーザーのシェル環境変数を読み込む
+// Load user shell environment
 const userEnv = loadUserShellEnvironment();
 
 /**
- * シェルコマンド実行クラス
+ * Parse command string handling quotes and escapes
+ */
+function parseCommandString(commandString: string): { command: string; args: string[] } {
+  const tokens: string[] = [];
+  let current = '';
+  let inSingleQuote = false;
+  let inDoubleQuote = false;
+  let escaped = false;
+
+  for (let i = 0; i < commandString.length; i++) {
+    const char = commandString[i];
+    
+    if (escaped) {
+      current += char;
+      escaped = false;
+      continue;
+    }
+    
+    if (char === '\\') {
+      if (inSingleQuote) {
+        current += char;
+      } else {
+        escaped = true;
+      }
+      continue;
+    }
+    
+    if (char === "'" && !inDoubleQuote) {
+      inSingleQuote = !inSingleQuote;
+      continue;
+    }
+    
+    if (char === '"' && !inSingleQuote) {
+      inDoubleQuote = !inDoubleQuote;
+      continue;
+    }
+    
+    if (char === ' ' && !inSingleQuote && !inDoubleQuote) {
+      if (current) {
+        tokens.push(current);
+        current = '';
+      }
+      continue;
+    }
+    
+    current += char;
+  }
+  
+  if (current) {
+    tokens.push(current);
+  }
+  
+  return {
+    command: tokens[0] || '',
+    args: tokens.slice(1)
+  };
+}
+
+/**
+ * Shell command executor
  */
 class ShellExecutor {
   private allowedCommands: Set<string>;
@@ -114,20 +171,18 @@ class ShellExecutor {
   private maxTimeout: number;
   private shellEnvironment: Record<string, string>;
 
-  /**
-   * コンストラクタ
-   */
+
   constructor(baseDir: string, shellEnv: Record<string, string>) {
-    // 許可されたコマンドを設定（デフォルトは一般的に使用される開発ツール）
+    // Set allowed commands for development
     this.allowedCommands = new Set([
-      // パッケージマネージャー
+      // Package managers
       "npm",
       "yarn",
       "pnpm",
       "bun",
-      // バージョン管理
+      // Version control
       "git",
-      // ファイルシステム操作
+      // File system
       "ls",
       "dir",
       "find",
@@ -137,38 +192,38 @@ class ShellExecutor {
       "mv",
       "rm",
       "cat",
-      // 開発ツール
+      // Dev tools
       "node",
       "python",
       "python3",
       "tsc",
       "eslint",
       "prettier",
-      // ビルドツール
+      // Build tools
       "make",
       "cargo",
       "go",
-      // コンテナツール
+      // Container tools
       "docker",
       "docker-compose",
-      // その他のユーティリティ
+      // Other utilities
       "echo",
       "touch",
       "grep",
     ]);
 
-    // ベースディレクトリを設定
+    // Set base directory
     this.baseDirectory = baseDir;
 
-    // 最大タイムアウトを設定（デフォルトは60秒）
+    // Max timeout 60 seconds
     this.maxTimeout = 60000;
 
-    // シェル環境変数を設定
+    // Set shell environment
     this.shellEnvironment = shellEnv;
   }
 
   /**
-   * シェルコマンドを実行する
+   * Execute shell command
    */
   public async executeCommand(
     command: string,
@@ -184,44 +239,67 @@ class ShellExecutor {
     success: boolean;
     error?: string;
   }> {
+    // Define command and args at method scope
+    let actualCommand = command;
+    let actualArgs = args;
+    
     try {
       if (!command) {
         return this.createErrorResponse("Command not specified");
       }
 
-      // セキュリティチェック：コマンドが許可されているか確認
-      if (!this.isCommandAllowed(command)) {
+      // Auto-split command string if args empty
+      
+      if (args.length === 0 && command.includes(' ')) {
+        // Parse command string
+        const parsed = parseCommandString(command);
+        actualCommand = parsed.command;
+        actualArgs = parsed.args;
+        
+        log("debug", `Auto-split: "${command}" -> cmd: "${actualCommand}", args: [${actualArgs.map(arg => `"${arg}"`).join(', ')}]`);
+      }
+
+      // Security check: verify command is allowed
+      if (!this.isCommandAllowed(actualCommand)) {
         const availableCommands = Array.from(this.allowedCommands).sort();
+        
+        // Special message for cd command
+        if (actualCommand === "cd" || actualCommand.toLowerCase() === "cd") {
+          return this.createErrorResponse(
+            `'cd' command not supported. Each command runs in isolation.\n` +
+              `Use 'cwd' parameter instead:\n` +
+              `Example: {"command": "ls", "cwd": "./src"}\n` +
+              `Base directory: ${this.baseDirectory}`,
+          );
+        }
+        
         return this.createErrorResponse(
-          `Command not allowed: ${command}\n\n` +
-            `=== ALLOWED COMMANDS ===\n${availableCommands.join(", ")}\n\n` +
-            `=== HINTS ===\n` +
-            `- Check for typos in the command name\n` +
-            `- Contact the administrator if you need additional commands`,
+          `Command not allowed: ${actualCommand}\n` +
+          `Allowed commands: ${availableCommands.join(", ")}\n` +
+          `Check command spelling or request additional commands if needed`,
         );
       }
 
-      // 作業ディレクトリを検証
+      // Validate working directory
       let workingDir: string;
       try {
         workingDir = this.validateWorkingDirectory(cwd);
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         return this.createErrorResponse(
-          `${errorMessage}\n\n` +
-            `=== DEBUG INFO ===\n` +
-            `Base directory: ${this.baseDirectory}\n` +
-            `Specified directory: ${cwd || "(not specified)"}`,
+          `${errorMessage}\n` +
+            `Base: ${this.baseDirectory}\n` +
+            `Specified: ${cwd || "(not specified)"}`,
         );
       }
 
-      // 環境変数を作成（ユーザーのシェル環境変数 + 追加の環境変数）
+      // Merge environment variables
       const mergedEnv = { ...this.shellEnvironment, ...(env || {}) };
 
-      // コマンドを実行して結果を返す
+      // Execute command and return result
       return await this.spawnCommand(
-        command,
-        args,
+        actualCommand,
+        actualArgs,
         {
           cwd: workingDir,
           env: mergedEnv,
@@ -230,22 +308,22 @@ class ShellExecutor {
         maxOutputSizeMB,
       );
     } catch (error) {
-      // 予期しないエラーを処理
+      // Handle unexpected errors
       const errorMessage = error instanceof Error ? error.message : String(error);
       const errorStack = error instanceof Error ? error.stack : undefined;
 
       return this.createErrorResponse(
-        `Failed to execute command: ${errorMessage}\n\n` +
-          `=== COMMAND INFO ===\n` +
-          `Command: ${command} ${args.join(" ")}\n` +
-          `Working directory: ${cwd || this.baseDirectory}\n` +
-          (errorStack ? `\n=== STACK TRACE ===\n${errorStack}` : ""),
+        `Failed to execute: ${errorMessage}\n` +
+          `Command: ${actualCommand} ${actualArgs.join(" ")}\n` +
+          `Original: ${command}${args.length > 0 ? " " + args.join(" ") : ""}\n` +
+          `Directory: ${cwd || this.baseDirectory}` +
+          (errorStack ? `\n${errorStack}` : ""),
       );
     }
   }
 
   /**
-   * 標準化されたエラーレスポンスを作成
+   * Create standardized error response
    */
   private createErrorResponse(message: string): {
     stdout: string;
@@ -264,40 +342,40 @@ class ShellExecutor {
   }
 
   /**
-   * コマンドが許可リストにあるかチェック
+   * Check if command is in allowed list
    */
   private isCommandAllowed(command: string): boolean {
-    // ベースコマンドを抽出（パスなし）
+    // Extract base command name
     const commandName = path.basename(command);
     return this.allowedCommands.has(commandName);
   }
 
   /**
-   * 作業ディレクトリを検証して正規化
+   * Validate and normalize working directory
    */
   private validateWorkingDirectory(cwd?: string): string {
     if (!cwd) {
       return this.baseDirectory;
     }
 
-    // パスを解決（相対パスをサポート）
+    // Resolve path (support relative paths)
     const resolvedPath = path.resolve(this.baseDirectory, cwd);
 
-    // セキュリティチェック：パスがベースディレクトリ内にあることを確認
+    // Security: ensure path is within base directory
     if (!resolvedPath.startsWith(this.baseDirectory)) {
       throw new Error(
-        `Working directory ${cwd} is outside the allowed base directory\n` +
-          `Base directory: ${this.baseDirectory}\n` +
-          `Resolved path: ${resolvedPath}`,
+        `Directory ${cwd} outside allowed base\n` +
+          `Base: ${this.baseDirectory}\n` +
+          `Resolved: ${resolvedPath}`,
       );
     }
 
-    // ディレクトリが存在することを確認
+    // Check directory exists
     if (!fs.existsSync(resolvedPath)) {
       throw new Error(
-        `Directory does not exist: ${resolvedPath}\n` +
-          `Specified path: ${cwd}\n` +
-          `Base directory: ${this.baseDirectory}`,
+        `Directory not found: ${resolvedPath}\n` +
+          `Specified: ${cwd}\n` +
+          `Base: ${this.baseDirectory}`,
       );
     }
 
@@ -305,7 +383,7 @@ class ShellExecutor {
   }
 
   /**
-   * シェルコマンドプロセスを生成して出力を処理
+   * Spawn command process and handle output
    */
   private spawnCommand(
     command: string,
@@ -328,22 +406,22 @@ class ShellExecutor {
       let stderrTruncated = false;
       let timeoutId: NodeJS.Timeout | Timer | null = null;
 
-      // カスタムまたはデフォルトの最大出力サイズ
+      // Max output size
       const maxSize = (maxOutputSizeMB || 1) * 1024 * 1024;
 
-      // 最後の出力を保持するための循環バッファ
-      const tailBufferSize = Math.min(10240, Math.floor(maxSize / 10)); // 最大サイズの10%または10KBの小さい方
+      // Circular buffer for tail output
+      const tailBufferSize = Math.min(10240, Math.floor(maxSize / 10));
       let stdoutTailBuffer: string[] = [];
       let stderrTailBuffer: string[] = [];
 
-      // よりよいストリーム処理のためにspawnを使用
+      // Use spawn for better stream handling
       const childProcess = spawn(command, args, {
         ...options,
         shell: true,
         stdio: "pipe",
       });
 
-      // 標準出力を収集（サイズ制限付き）
+      // Collect stdout with size limit
       childProcess.stdout?.on("data", (data) => {
         const chunk = data.toString();
         const chunkSize = Buffer.byteLength(chunk, "utf8");
@@ -353,27 +431,27 @@ class ShellExecutor {
           stdoutSize += chunkSize;
         } else {
           if (!stdoutTruncated) {
-            // 最大サイズに達した場合、残りの容量分だけ追加
+            // Add remaining capacity
             const remainingSize = maxSize - tailBufferSize - stdoutSize;
             if (remainingSize > 0) {
-              const truncatedChunk = chunk.substring(0, Math.floor(remainingSize / 2)); // UTF-8を考慮して半分に
+              const truncatedChunk = chunk.substring(0, Math.floor(remainingSize / 2));
               stdout += truncatedChunk;
             }
             stdout +=
-              "\n\n[Output truncated. Showing first and last portions]\n\n... (middle portion omitted) ...\n\n";
+              "\n[Output truncated - showing first/last portions]\n[...middle omitted...]\n";
             stdoutTruncated = true;
           }
 
-          // 最後の部分を循環バッファに保存
+          // Save to circular buffer
           stdoutTailBuffer.push(chunk);
-          // バッファサイズを制限
+          // Limit buffer size
           while (stdoutTailBuffer.join("").length > tailBufferSize) {
             stdoutTailBuffer.shift();
           }
         }
       });
 
-      // 標準エラーを収集（サイズ制限付き）
+      // Collect stderr with size limit
       childProcess.stderr?.on("data", (data) => {
         const chunk = data.toString();
         const chunkSize = Buffer.byteLength(chunk, "utf8");
@@ -386,30 +464,30 @@ class ShellExecutor {
             // 最大サイズに達した場合、残りの容量分だけ追加
             const remainingSize = maxSize - tailBufferSize - stderrSize;
             if (remainingSize > 0) {
-              const truncatedChunk = chunk.substring(0, Math.floor(remainingSize / 2)); // UTF-8を考慮して半分に
+              const truncatedChunk = chunk.substring(0, Math.floor(remainingSize / 2));
               stderr += truncatedChunk;
             }
             stderr +=
-              "\n\n[Error output truncated. Showing first and last portions]\n\n... (middle portion omitted) ...\n\n";
+              "\n[Error truncated - showing first/last portions]\n[...middle omitted...]\n";
             stderrTruncated = true;
           }
 
-          // 最後の部分を循環バッファに保存
+          // Save to circular buffer
           stderrTailBuffer.push(chunk);
-          // バッファサイズを制限
+          // Limit buffer size
           while (stderrTailBuffer.join("").length > tailBufferSize) {
             stderrTailBuffer.shift();
           }
         }
       });
 
-      // プロセス完了の処理
+      // Handle process completion
       childProcess.on("close", (exitCode) => {
         if (timeoutId) {
           clearTimeout(timeoutId);
         }
 
-        // 切り詰められた場合、最後の部分を追加
+        // Add tail if truncated
         if (stdoutTruncated && stdoutTailBuffer.length > 0) {
           stdout += stdoutTailBuffer.join("");
         }
@@ -425,20 +503,19 @@ class ShellExecutor {
         });
       });
 
-      // プロセスエラーの処理
+      // Handle process errors
       childProcess.on("error", (error) => {
         if (timeoutId) {
           clearTimeout(timeoutId);
         }
 
-        // エラーの詳細情報を含める
+        // Include error details
         const errorInfo = `Process error: ${error.message}`;
         const systemError = error as NodeJS.ErrnoException;
         let additionalInfo = "";
 
         if (systemError.code === "ENOENT") {
-          additionalInfo = `\nCommand not found: ${command}`;
-          additionalInfo += `\nPATH: ${options.env?.PATH || process.env.PATH}`;
+          additionalInfo = `\nCommand not found: ${command}\nPATH: ${options.env?.PATH || process.env.PATH}`;
         } else if (systemError.code === "EACCES") {
           additionalInfo = `\nPermission denied: ${command}`;
         } else if (systemError.code) {
@@ -454,37 +531,27 @@ class ShellExecutor {
         });
       });
 
-      // タイムアウト処理の設定
+      // Setup timeout handling
       if (options.timeout) {
         timeoutId = setTimeout(() => {
           childProcess.kill("SIGTERM");
 
-          // 1秒後に強制終了
+          // Force kill after 1 second
           setTimeout(() => {
             if (!childProcess.killed) {
               childProcess.kill("SIGKILL");
             }
           }, 1000);
 
-          const timeoutInfo = `\n\n=== TIMEOUT INFO ===\n`;
-          const timeoutDetails = {
-            timeout: options.timeout,
-            command: command,
-            args: args,
-            stdout_size: stdoutSize,
-            stderr_size: stderrSize,
-            stdout_truncated: stdoutTruncated,
-            stderr_truncated: stderrTruncated,
-          };
+          const timeoutInfo = `\nTimeout: ${options.timeout}ms, stdout: ${stdoutSize}B, stderr: ${stderrSize}B`;
 
           resolve({
             stdout: stdout + (stdoutTruncated ? stdoutTailBuffer.join("") : ""),
             stderr:
               stderr +
               (stderrTruncated ? stderrTailBuffer.join("") : "") +
-              timeoutInfo +
-              JSON.stringify(timeoutDetails, null, 2),
-            exitCode: 124, // GNU timeout 互換の終了コード
+              timeoutInfo,
+            exitCode: 124, // GNU timeout compatible
             success: false,
             error: `Command timed out after ${options.timeout}ms`,
           });
@@ -494,73 +561,73 @@ class ShellExecutor {
   }
 
   /**
-   * 許可されたコマンドのリストを取得
+   * Get list of allowed commands
    */
   public getAllowedCommands(): string[] {
     return Array.from(this.allowedCommands);
   }
 
   /**
-   * コマンドを許可リストに追加
+   * Add command to allowed list
    */
   public allowCommand(command: string): void {
     this.allowedCommands.add(command);
   }
 
   /**
-   * コマンドを許可リストから削除
+   * Remove command from allowed list
    */
   public disallowCommand(command: string): void {
     this.allowedCommands.delete(command);
   }
 }
 
-// ベースディレクトリが有効かチェック
+// Check base directory exists
 if (!fs.existsSync(baseDirectory)) {
   console.error(`Error: Base directory ${baseDirectory} does not exist.`);
   process.exit(1);
 }
 
-// シェル実行インスタンスを作成
+// Create shell executor instance
 const shellExecutor = new ShellExecutor(baseDirectory, userEnv);
 
-// ツール入力用のZodスキーマを定義
+// Define Zod schemas for tool inputs
 const ShellExecuteSchema = z.object({
-  command: z.string().describe("実行するシェルコマンド"),
-  args: z.array(z.string()).optional().default([]).describe("コマンド引数（配列形式）"),
-  cwd: z.string().optional().describe("作業ディレクトリ"),
-  env: z.record(z.string()).optional().describe("環境変数"),
-  timeout: z.number().optional().describe("タイムアウト（ミリ秒）"),
+  command: z.string().describe("Shell command to execute. Can include full command string with args (e.g. 'git add .'). Note: 'cd' command NOT supported - use 'cwd' parameter for directory navigation"),
+  args: z.array(z.string()).optional().default([]).describe("Command arguments array. Optional if command contains full command string"),
+  cwd: z.string().optional().describe("Working directory. IMPORTANT: Use this for directory navigation, NOT 'cd' command"),
+  env: z.record(z.string()).optional().describe("Environment variables"),
+  timeout: z.number().optional().describe("Timeout in milliseconds"),
   maxOutputSizeMB: z
     .number()
     .optional()
     .default(1)
-    .describe("最大出力サイズ（MB単位、デフォルト: 1MB）"),
+    .describe("Max output size in MB (default: 1MB)"),
 });
 
-// MCPサーバーとClaude間の通信制限について
-// - デフォルトタイムアウト: 60秒（TypeScript SDK）
-// - メッセージサイズ制限: 明確な仕様はないが、大きすぎる応答はClaude Desktopがクラッシュする可能性あり
-// - エラーコード: -32001 (RequestTimeout)
+// MCP transport limits:
+// - Default timeout: 60s (TypeScript SDK)
+// - Large responses may cause Claude Desktop issues
+// - Error code: -32001 (RequestTimeout)
 
 const GetAllowedCommandsSchema = z.object({});
 
-// シェルツール名をenumオブジェクトとして定義
+// Define tool names
 const ShellTools = {
   EXECUTE: "shell_execute",
   GET_ALLOWED_COMMANDS: "shell_get_allowed_commands",
 } as const;
 
-// MCPサーバーを初期化
+// Initialize MCP server
 const server = new McpServer({
   name: "mcp-shell",
   version: "1.0.0",
 });
 
-// シェルツールを定義
+// Define shell tools
 server.tool(
   ShellTools.EXECUTE,
-  "Execute shell commands for development tasks. Supports package managers (npm, yarn, bun), git, file operations, and dev tools (node, python, tsc). Runs in controlled environment with security restrictions.",
+  "Execute shell commands for development tasks. You can use either: 1) command='git add .' (complete command string - recommended), or 2) command='git' args=['add', '.']. **IMPORTANT: Directory navigation must be done using the 'cwd' parameter, NOT with 'cd' commands. The 'cd' command will have no effect as each command runs in isolation.** Supports package managers (npm, pnpm, yarn, bun), git, file operations, and dev tools (node, python, tsc). Runs in controlled environment with security restrictions. Each command execution is stateless - use 'cwd' parameter to set working directory.",
   ShellExecuteSchema.shape,
   async (args) => {
     try {
@@ -575,50 +642,35 @@ server.tool(
       );
 
       if (!result.success) {
-        // エラー時により詳細な情報を提供
-        // エラー情報を直接メッセージに組み込む
+        // Build error message
 
-        // エラーメッセージの構築
+
         let errorMessage = `Command failed: ${args.command} ${(args.args || []).join(" ")}\n`;
         errorMessage += `Exit code: ${result.exitCode}\n`;
-        errorMessage += `Working directory: ${args.cwd || baseDirectory}\n\n`;
+        errorMessage += `Directory: ${args.cwd || baseDirectory}\n`;
 
         if (result.stderr) {
-          errorMessage += `=== STDERR ===\n${result.stderr}\n\n`;
+          errorMessage += `\nSTDERR:\n${result.stderr}\n`;
         }
-
         if (result.stdout) {
-          errorMessage += `=== STDOUT ===\n${result.stdout}\n\n`;
+          errorMessage += `\nSTDOUT:\n${result.stdout}\n`;
         }
-
         if (result.error) {
-          errorMessage += `=== ERROR ===\n${result.error}\n\n`;
+          errorMessage += `\nERROR: ${result.error}\n`;
         }
 
-        errorMessage += `=== DEBUGGING INFO ===\n`;
-        errorMessage += `Command executed: ${args.command} ${(args.args || []).join(" ")}\n`;
-        errorMessage += `Total execution time: ${Date.now() - startTime}ms\n`;
-        errorMessage += `MCP transport limits:\n`;
-        errorMessage += `- Default MCP timeout: 60 seconds (TypeScript SDK)\n`;
-        errorMessage += `- Output size limit: ${args.maxOutputSizeMB || 1}MB (configurable)\n`;
-        errorMessage += `- Large outputs may cause Claude Desktop to fail\n\n`;
-        errorMessage += `=== POSSIBLE SOLUTIONS ===\n`;
+        errorMessage += `\nExecution time: ${Date.now() - startTime}ms\n`;
+        errorMessage += `Output limit: ${args.maxOutputSizeMB || 1}MB\n\nSolutions:\n`;
 
         if (result.exitCode === 124) {
-          errorMessage += `- Increase timeout using the timeout parameter\n`;
-          errorMessage += `- Break down the task into smaller operations\n`;
-          errorMessage += `- Use background processes for long-running tasks\n`;
+          errorMessage += `- Increase timeout parameter\n- Break into smaller operations\n- Use background processes\n`;
         } else if (
           result.stdout.includes("[Output truncated") ||
           result.stderr.includes("[Error output truncated")
         ) {
-          errorMessage += `- Increase maxOutputSizeMB parameter (current: ${args.maxOutputSizeMB || 1}MB)\n`;
-          errorMessage += `- Redirect output to a file instead\n`;
-          errorMessage += `- Filter or summarize the output\n`;
+          errorMessage += `- Increase maxOutputSizeMB (current: ${args.maxOutputSizeMB || 1}MB)\n- Redirect output to file\n- Filter output\n`;
         } else {
-          errorMessage += `- Check command syntax and arguments\n`;
-          errorMessage += `- Verify the command exists and is in PATH\n`;
-          errorMessage += `- Check file/directory permissions\n`;
+          errorMessage += `- Check command syntax\n- Verify command exists in PATH\n- Check permissions\n`;
         }
 
         return {
@@ -642,7 +694,7 @@ server.tool(
         isError: false,
       };
     } catch (error) {
-      // 予期しないエラーの場合も詳細情報を提供
+      // Handle unexpected errors
       const errorDetails = {
         command: args.command,
         args: args.args || [],
@@ -666,7 +718,7 @@ server.tool(
         content: [
           {
             type: "text",
-            text: `Unexpected error during command execution:\n\n${JSON.stringify(errorDetails, null, 2)}`,
+            text: `Unexpected error:\n${JSON.stringify(errorDetails, null, 2)}`,
           },
         ],
         isError: true,
@@ -677,7 +729,7 @@ server.tool(
 
 server.tool(
   ShellTools.GET_ALLOWED_COMMANDS,
-  "Get list of allowed shell commands. Shows available commands without executing them. Useful to check what commands can be run before using shell_execute.",
+  "Get list of allowed shell commands. Shows available commands without executing them. Useful to check what commands can be run before using shell_execute. Note: 'cd' command is NOT supported - use 'cwd' parameter instead for directory navigation.",
   GetAllowedCommandsSchema.shape,
   async () => {
     try {
@@ -686,7 +738,9 @@ server.tool(
         content: [
           {
             type: "text",
-            text: `Available commands:\n${commands.join(", ")}`,
+            text: `Available commands: ${commands.join(", ")}\n\n` +
+                  `Note: 'cd' command not supported - use 'cwd' parameter for directory navigation\n` +
+                  `Each command runs independently without state persistence`,
           },
         ],
         isError: false,
@@ -705,7 +759,7 @@ server.tool(
   },
 );
 
-// サーバーを起動
+// Start server
 async function main() {
   try {
     const transport = new StdioServerTransport();
