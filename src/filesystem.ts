@@ -1124,6 +1124,19 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         } as ToolAnnotations,
       },
       {
+        name: "create_file",
+        description:
+          "Create a new file (alias for write_file). Creates or overwrites a file. Only works within allowed directories.",
+        inputSchema: zodToJsonSchema(WriteFileArgsSchema) as ToolInput,
+        annotations: {
+          title: "ファイル作成",
+          readOnlyHint: false,
+          idempotentHint: false,
+          openWorldHint: false,
+          costHint: "low",
+        } as ToolAnnotations,
+      },
+      {
         name: "search_files",
         description:
           "Recursively search files matching a pattern. Case-insensitive, partial name matching. Returns full paths. Only searches within allowed directories.",
@@ -1702,6 +1715,19 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
         return {
           content: [{ type: "text", text: result }],
+        };
+      }
+
+      // create_fileケース - write_fileへのエイリアス
+      case "create_file": {
+        const parsed = WriteFileArgsSchema.safeParse(args);
+        if (!parsed.success) {
+          throw new Error(`Invalid arguments for create_file: ${parsed.error}`);
+        }
+        const validPath = await validatePath(parsed.data.path);
+        await fs.writeFile(validPath, parsed.data.content, "utf-8");
+        return {
+          content: [{ type: "text", text: `Successfully created file ${parsed.data.path}` }],
         };
       }
 
