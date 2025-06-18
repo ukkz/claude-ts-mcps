@@ -31,6 +31,18 @@ export const ShellExecuteSchema = z.object({
     .optional()
     .default(1)
     .describe("Max output size in MB (default: 1MB)"),
+  streaming: z
+    .boolean()
+    .optional()
+    .describe("Enable streaming mode for long-running commands. Returns partial output after timeout or buffer limit"),
+  streamingTimeout: z
+    .number()
+    .optional()
+    .describe("Timeout for streaming mode in milliseconds (default: 3000)"),
+  streamingBufferSizeKB: z
+    .number()
+    .optional()
+    .describe("Buffer size limit for streaming mode in KB (default: 100)"),
 });
 
 export const GetAllowedCommandsSchema = z.object({});
@@ -50,6 +62,9 @@ export function createExecuteHandler(executor: ShellExecutor, baseDirectory: str
         env: args.env,
         timeout: args.timeout,
         maxOutputSizeMB: args.maxOutputSizeMB,
+        streaming: args.streaming,
+        streamingTimeout: args.streamingTimeout,
+        streamingBufferSizeKB: args.streamingBufferSizeKB,
       });
 
       if (!result.success) {
@@ -74,11 +89,28 @@ export function createExecuteHandler(executor: ShellExecutor, baseDirectory: str
         };
       }
 
+      // ストリーミング結果の場合は、追加情報を含める
+      let responseText = result.stdout;
+      if (result.streamingResult) {
+        responseText = [
+          "[STREAMING MODE - Process still running]",
+          `Partial output returned after ${args.streamingTimeout || 3000}ms or ${args.streamingBufferSizeKB || 100}KB buffer`,
+          "",
+          "=== STDOUT ===",
+          result.stdout || "(no output yet)",
+          "",
+          "=== STDERR ===",
+          result.stderr || "(no error output yet)",
+          "",
+          "Note: The process is still running in the background.",
+        ].join("\n");
+      }
+
       return {
         content: [
           {
             type: "text" as const,
-            text: result.stdout,
+            text: responseText,
           },
         ],
         isError: false,

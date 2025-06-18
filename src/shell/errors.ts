@@ -67,7 +67,17 @@ export function formatCommandError(
   startTime: number,
   maxOutputSizeMB: number | undefined,
 ): string {
-  let errorMessage = `Command failed: ${command} ${args.join(" ")}\n`;
+  let errorMessage = "";
+  
+  // ストリーミング結果の場合
+  if (result.streamingResult) {
+    errorMessage = `[STREAMING MODE - Process still running]\n`;
+    errorMessage += `Command: ${command} ${args.join(" ")}\n`;
+    errorMessage += `Partial output returned (process did not complete within streaming timeout)\n`;
+  } else {
+    errorMessage = `Command failed: ${command} ${args.join(" ")}\n`;
+  }
+  
   errorMessage += `Exit code: ${result.exitCode}\n`;
   errorMessage += `Directory: ${cwd || baseDirectory}\n`;
 
@@ -84,7 +94,9 @@ export function formatCommandError(
   errorMessage += `\nExecution time: ${Date.now() - startTime}ms\n`;
   errorMessage += `Output limit: ${maxOutputSizeMB || 1}MB\n\nSolutions:\n`;
 
-  if (result.exitCode === TIMEOUT_EXIT_CODE) {
+  if (result.streamingResult) {
+    errorMessage += `- Increase streamingTimeout for longer capture\n- Increase streamingBufferSizeKB for more output\n- Check if the command is interactive and needs input\n- Consider running without streaming mode if full output is needed\n`;
+  } else if (result.exitCode === TIMEOUT_EXIT_CODE) {
     errorMessage += `- Increase timeout parameter\n- Break into smaller operations\n- Use background processes\n`;
   } else if (
     result.stdout.includes("[Output truncated") ||

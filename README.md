@@ -215,7 +215,11 @@ Our most comprehensive tool with 30+ functions organized into categories:
 - **Development Tools**: npm, yarn, bun, git, node, python, tsc
 - **Security**: Prevents dangerous operations, directory restrictions
 - **Features**: Auto-parsing of command strings, output size limits, timeout control
-- **Use Cases**: Package management, build processes, script execution
+- **Streaming Mode**: NEW! Capture output from long-running processes without waiting for completion
+  - Enable with `streaming: true` parameter
+  - Returns partial output after configurable timeout (default: 3s) or buffer size (default: 100KB)
+  - Perfect for: development servers, build watchers, interactive commands
+- **Use Cases**: Package management, build processes, script execution, server monitoring
 
 ### URL Content Fetching (`fetch`)
 

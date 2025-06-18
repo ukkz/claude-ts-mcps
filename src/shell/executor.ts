@@ -7,8 +7,11 @@ import type { CommandResult, ExecuteOptions, ShellExecutorConfig } from "./types
 import {
   DEFAULT_ALLOWED_COMMANDS,
   DEFAULT_MAX_TIMEOUT,
+  DEFAULT_STREAMING_TIMEOUT,
+  DEFAULT_STREAMING_BUFFER_SIZE_KB,
   ErrorMessages,
   TIMEOUT_EXIT_CODE,
+  STREAMING_EXIT_CODE,
 } from "./constants";
 import { parseCommandString } from "./parser";
 import {
@@ -106,6 +109,9 @@ export class ShellExecutor {
           timeout,
         },
         maxOutputSize,
+        options.streaming,
+        options.streamingTimeout,
+        options.streamingBufferSizeKB,
       );
     } catch (error) {
       // 予期しないエラーを処理
@@ -147,12 +153,24 @@ export class ShellExecutor {
     args: string[],
     options: SpawnOptions & { timeout?: number },
     maxOutputSize: number,
+    streaming?: boolean,
+    streamingTimeout?: number,
+    streamingBufferSizeKB?: number,
   ): Promise<CommandResult> {
     return new Promise((resolve) => {
       // 出力バッファを初期化
       const stdoutBuffer = createOutputBuffer();
       const stderrBuffer = createOutputBuffer();
       let timeoutId: NodeJS.Timeout | Timer | null = null;
+      let streamingTimeoutId: NodeJS.Timeout | Timer | null = null;
+      let processExited = false;
+      let resultReturned = false;
+
+      // ストリーミングモードの設定
+      const isStreamingMode = streaming === true;
+      const effectiveStreamingTimeout = streamingTimeout || DEFAULT_STREAMING_TIMEOUT;
+      const effectiveStreamingBufferSizeKB = streamingBufferSizeKB || DEFAULT_STREAMING_BUFFER_SIZE_KB;
+      const streamingBufferSizeBytes = effectiveStreamingBufferSizeKB * 1024;
 
       // プロセスを生成
       const childProcess = spawn(command, args, {
@@ -160,6 +178,43 @@ export class ShellExecutor {
         shell: true,
         stdio: "pipe",
       });
+
+      // ストリーミングモードでの早期返却関数
+      const checkStreamingConditions = () => {
+        if (!isStreamingMode || processExited || resultReturned) {
+          return;
+        }
+
+        // バッファサイズが闾値を超えた場合
+        if (stdoutBuffer.size + stderrBuffer.size >= streamingBufferSizeBytes) {
+          returnStreamingResult();
+        }
+      };
+
+      // ストリーミング結果を返す関数
+      const returnStreamingResult = () => {
+        if (resultReturned) {
+          return;
+        }
+        resultReturned = true;
+
+        if (streamingTimeoutId) {
+          clearTimeout(streamingTimeoutId);
+        }
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
+
+        resolve({
+          stdout: finalizeBuffer(stdoutBuffer),
+          stderr: finalizeBuffer(stderrBuffer),
+          exitCode: STREAMING_EXIT_CODE,
+          success: false,
+          processRunning: true,
+          streamingResult: true,
+          error: `Streaming result returned after ${effectiveStreamingTimeout}ms or ${effectiveStreamingBufferSizeKB}KB buffer`,
+        });
+      };
 
       // 標準出力を収集
       childProcess.stdout?.on("data", (data) => {
@@ -169,6 +224,7 @@ export class ShellExecutor {
           maxOutputSize,
           ErrorMessages.OUTPUT_TRUNCATED,
         );
+        checkStreamingConditions();
       });
 
       // 標準エラー出力を収集
@@ -179,26 +235,40 @@ export class ShellExecutor {
           maxOutputSize,
           ErrorMessages.ERROR_OUTPUT_TRUNCATED,
         );
+        checkStreamingConditions();
       });
 
       // プロセス完了を処理
       childProcess.on("close", (exitCode) => {
+        processExited = true;
+        
         if (timeoutId) {
           clearTimeout(timeoutId);
         }
+        if (streamingTimeoutId) {
+          clearTimeout(streamingTimeoutId);
+        }
 
-        resolve({
-          stdout: finalizeBuffer(stdoutBuffer),
-          stderr: finalizeBuffer(stderrBuffer),
-          exitCode: exitCode !== null ? exitCode : 1,
-          success: exitCode === 0,
-        });
+        // まだ結果を返していない場合のみ返す
+        if (!resultReturned) {
+          resolve({
+            stdout: finalizeBuffer(stdoutBuffer),
+            stderr: finalizeBuffer(stderrBuffer),
+            exitCode: exitCode !== null ? exitCode : 1,
+            success: exitCode === 0,
+          });
+        }
       });
 
       // プロセスエラーを処理
       childProcess.on("error", (error) => {
+        processExited = true;
+        
         if (timeoutId) {
           clearTimeout(timeoutId);
+        }
+        if (streamingTimeoutId) {
+          clearTimeout(streamingTimeoutId);
         }
 
         const errorInfo = formatProcessError(
@@ -207,14 +277,24 @@ export class ShellExecutor {
           options.env as Record<string, string> | undefined,
         );
 
-        resolve({
-          stdout: finalizeBuffer(stdoutBuffer),
-          stderr: finalizeBuffer(stderrBuffer) + errorInfo,
-          exitCode: 1,
-          success: false,
-          error: error.message,
-        });
+        // まだ結果を返していない場合のみ返す
+        if (!resultReturned) {
+          resolve({
+            stdout: finalizeBuffer(stdoutBuffer),
+            stderr: finalizeBuffer(stderrBuffer) + errorInfo,
+            exitCode: 1,
+            success: false,
+            error: error.message,
+          });
+        }
       });
+
+      // ストリーミングタイムアウトを設定
+      if (isStreamingMode) {
+        streamingTimeoutId = setTimeout(() => {
+          returnStreamingResult();
+        }, effectiveStreamingTimeout);
+      }
 
       // タイムアウト処理を設定
       if (options.timeout) {
@@ -234,13 +314,17 @@ export class ShellExecutor {
             stderrBuffer.size,
           );
 
-          resolve({
-            stdout: finalizeBuffer(stdoutBuffer),
-            stderr: finalizeBuffer(stderrBuffer) + timeoutInfo,
-            exitCode: TIMEOUT_EXIT_CODE,
-            success: false,
-            error: `Command timed out after ${options.timeout}ms`,
-          });
+          // まだ結果を返していない場合のみ返す
+          if (!resultReturned) {
+            resultReturned = true;
+            resolve({
+              stdout: finalizeBuffer(stdoutBuffer),
+              stderr: finalizeBuffer(stderrBuffer) + timeoutInfo,
+              exitCode: TIMEOUT_EXIT_CODE,
+              success: false,
+              error: `Command timed out after ${options.timeout}ms`,
+            });
+          }
         }, options.timeout);
       }
     });

@@ -16,6 +16,10 @@ export interface CommandResult {
   success: boolean;
   /** エラーメッセージ（エラー時のみ） */
   error?: string;
+  /** プロセスがまだ実行中かどうか（ストリーミングモード時） */
+  processRunning?: boolean;
+  /** ストリーミングモードで早期に返されたかどうか */
+  streamingResult?: boolean;
 }
 
 /**
@@ -30,6 +34,12 @@ export interface ExecuteOptions {
   timeout?: number;
   /** 最大出力サイズ（MB） */
   maxOutputSizeMB?: number;
+  /** ストリーミングモードを有効にする */
+  streaming?: boolean;
+  /** ストリーミング時の初回応答タイムアウト（ミリ秒）デフォルト: 3000 */
+  streamingTimeout?: number;
+  /** ストリーミング時の出力バッファサイズ（KB）デフォルト: 100 */
+  streamingBufferSizeKB?: number;
 }
 
 /**

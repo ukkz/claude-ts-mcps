@@ -64,6 +64,21 @@ export const DEFAULT_TAIL_BUFFER_SIZE = 10240;
 export const TIMEOUT_EXIT_CODE = 124;
 
 /**
+ * ストリーミングモードのデフォルトタイムアウト（3秒）
+ */
+export const DEFAULT_STREAMING_TIMEOUT = 3000;
+
+/**
+ * ストリーミングモードのデフォルトバッファサイズ（100KB）
+ */
+export const DEFAULT_STREAMING_BUFFER_SIZE_KB = 100;
+
+/**
+ * ストリーミング結果の終了コード
+ */
+export const STREAMING_EXIT_CODE = -1;
+
+/**
  * ツール名の定義
  */
 export const ShellTools = {
