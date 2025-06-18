@@ -218,6 +218,8 @@ Our most comprehensive tool with 30+ functions organized into categories:
 - **Streaming Mode**: Now enabled by default! Captures output from long-running processes
   - Automatically returns partial output after timeout (default: 10s) or buffer limit (100KB)
   - Normal commands complete as usual; only affects long-running processes
+  - Processes are automatically terminated after streaming timeout (safe default)
+  - Keep processes running with `killOnStreamingTimeout: false`
   - Perfect for: development servers, build watchers, interactive commands
   - Disable with `streaming: false` if needed
 - **Use Cases**: Package management, build processes, script execution, server monitoring

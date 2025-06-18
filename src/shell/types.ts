@@ -40,6 +40,8 @@ export interface ExecuteOptions {
   streamingTimeout?: number;
   /** ストリーミング時の出力バッファサイズ（KB）デフォルト: 100 */
   streamingBufferSizeKB?: number;
+  /** ストリーミングタイムアウト時にプロセスをkillするか（デフォルト: true） */
+  killOnStreamingTimeout?: boolean;
 }
 
 /**

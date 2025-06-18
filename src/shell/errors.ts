@@ -95,7 +95,7 @@ export function formatCommandError(
   errorMessage += `Output limit: ${maxOutputSizeMB || 1}MB\n\nSolutions:\n`;
 
   if (result.streamingResult) {
-    errorMessage += `- Increase streamingTimeout for longer capture\n- Increase streamingBufferSizeKB for more output\n- Check if the command is interactive and needs input\n- Consider running without streaming mode if full output is needed\n`;
+    errorMessage += `- Increase streamingTimeout for longer capture\n- Increase streamingBufferSizeKB for more output\n- Set killOnStreamingTimeout: false to keep process running\n- Check if the command is interactive and needs input\n- Consider running without streaming mode if full output is needed\n`;
   } else if (result.exitCode === TIMEOUT_EXIT_CODE) {
     errorMessage += `- Increase timeout parameter\n- Break into smaller operations\n- Use background processes\n`;
   } else if (

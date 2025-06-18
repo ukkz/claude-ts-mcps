@@ -112,6 +112,7 @@ export class ShellExecutor {
         options.streaming,
         options.streamingTimeout,
         options.streamingBufferSizeKB,
+        options.killOnStreamingTimeout,
       );
     } catch (error) {
       // 予期しないエラーを処理
@@ -156,6 +157,7 @@ export class ShellExecutor {
     streaming?: boolean,
     streamingTimeout?: number,
     streamingBufferSizeKB?: number,
+    killOnStreamingTimeout?: boolean,
   ): Promise<CommandResult> {
     return new Promise((resolve) => {
       // 出力バッファを初期化
@@ -171,6 +173,7 @@ export class ShellExecutor {
       const effectiveStreamingTimeout = streamingTimeout || DEFAULT_STREAMING_TIMEOUT;
       const effectiveStreamingBufferSizeKB = streamingBufferSizeKB || DEFAULT_STREAMING_BUFFER_SIZE_KB;
       const streamingBufferSizeBytes = effectiveStreamingBufferSizeKB * 1024;
+      const effectiveKillOnTimeout = killOnStreamingTimeout !== false; // デフォルトはtrue
 
       // プロセスを生成
       const childProcess = spawn(command, args, {
@@ -205,15 +208,32 @@ export class ShellExecutor {
           clearTimeout(timeoutId);
         }
 
+        // プロセスをkillするか判断
+        const willKillProcess = effectiveKillOnTimeout && !processExited;
+        const processStatus = willKillProcess ? "will be terminated" : "still running";
+
         resolve({
           stdout: finalizeBuffer(stdoutBuffer),
           stderr: finalizeBuffer(stderrBuffer),
           exitCode: STREAMING_EXIT_CODE,
           success: false,
-          processRunning: true,
+          processRunning: !willKillProcess,
           streamingResult: true,
-          error: `Streaming result returned after ${effectiveStreamingTimeout}ms or ${effectiveStreamingBufferSizeKB}KB buffer`,
+          error: `Streaming result returned after ${effectiveStreamingTimeout}ms or ${effectiveStreamingBufferSizeKB}KB buffer (process ${processStatus})`,
         });
+
+        // プロセスをkillする
+        if (willKillProcess) {
+          // まずSIGTERMを送信
+          childProcess.kill("SIGTERM");
+          
+          // 1秒後に強制終了
+          setTimeout(() => {
+            if (!childProcess.killed && !processExited) {
+              childProcess.kill("SIGKILL");
+            }
+          }, 1000);
+        }
       };
 
       // 標準出力を収集

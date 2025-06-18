@@ -45,6 +45,10 @@ export const ShellExecuteSchema = z.object({
     .number()
     .optional()
     .describe("Buffer size limit for streaming mode in KB (default: 100)"),
+  killOnStreamingTimeout: z
+    .boolean()
+    .optional()
+    .describe("Kill process when streaming timeout is reached (default: true)"),
 });
 
 export const GetAllowedCommandsSchema = z.object({});
@@ -67,9 +71,10 @@ export function createExecuteHandler(executor: ShellExecutor, baseDirectory: str
         streaming: args.streaming,
         streamingTimeout: args.streamingTimeout,
         streamingBufferSizeKB: args.streamingBufferSizeKB,
+        killOnStreamingTimeout: args.killOnStreamingTimeout,
       });
 
-      if (!result.success) {
+      if (!result.success && !result.streamingResult) {
         const errorMessage = formatCommandError(
           result,
           args.command,
@@ -94,8 +99,12 @@ export function createExecuteHandler(executor: ShellExecutor, baseDirectory: str
       // ストリーミング結果の場合は、追加情報を含める
       let responseText = result.stdout;
       if (result.streamingResult) {
+        const processStatus = result.processRunning 
+          ? "Process is still running in the background" 
+          : "Process has been terminated";
+        
         responseText = [
-          "[STREAMING MODE - Process still running]",
+          `[STREAMING MODE - ${processStatus}]`,
           `Partial output returned after ${args.streamingTimeout || DEFAULT_STREAMING_TIMEOUT}ms or ${args.streamingBufferSizeKB || DEFAULT_STREAMING_BUFFER_SIZE_KB}KB buffer`,
           "",
           "=== STDOUT ===",
@@ -104,8 +113,9 @@ export function createExecuteHandler(executor: ShellExecutor, baseDirectory: str
           "=== STDERR ===",
           result.stderr || "(no error output yet)",
           "",
-          "Note: The process is still running in the background.",
-        ].join("\n");
+          `Note: ${processStatus}.`,
+          result.processRunning ? "To keep process running, use killOnStreamingTimeout: false" : "",
+        ].filter(line => line !== "").join("\n");
       }
 
       return {
