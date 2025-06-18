@@ -401,21 +401,6 @@ For the best development experience, configure your editor to format on save:
 - [Brave Search API](https://api.search.brave.com/app/documentation)
 - [Perplexity API](https://docs.perplexity.ai/)
 
-## 🤝 Contributing
-
-Contributions are welcome! Please:
-
-1. Fork the repository
-2. Create a feature branch
-3. Add tests for new functionality
-4. Submit a pull request
-
 ## 📄 License
 
 [MIT License](LICENSE)
-
-## 🙏 Acknowledgments
-
-This project enables developers to leverage Claude's capabilities for
-development tasks while managing costs effectively through the Claude Pro
-subscription model.
