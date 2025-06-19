@@ -14,16 +14,12 @@ async function runTest() {
 
   // MCPサーバーを起動
   console.log("Starting MCP server...");
-  const server = spawn("bun", [
-    "run",
-    join(import.meta.dir, "src/filesystem.ts"),
-    TEST_DIR
-  ], {
-    stdio: ["pipe", "pipe", "pipe"]
+  const server = spawn("bun", ["run", join(import.meta.dir, "src/filesystem.ts"), TEST_DIR], {
+    stdio: ["pipe", "pipe", "pipe"],
   });
 
   // サーバーが起動するまで待機
-  await new Promise(resolve => setTimeout(resolve, 1000));
+  await new Promise((resolve) => setTimeout(resolve, 1000));
 
   console.log("✅ Server started\n");
 
@@ -36,10 +32,10 @@ async function runTest() {
         method: "tools/call",
         params: {
           name: "list_allowed_directories",
-          arguments: {}
+          arguments: {},
         },
-        id: 1
-      }
+        id: 1,
+      },
     },
     {
       name: "Create directory",
@@ -49,11 +45,11 @@ async function runTest() {
         params: {
           name: "create_directory",
           arguments: {
-            path: `${TEST_DIR}/test-dir`
-          }
+            path: `${TEST_DIR}/test-dir`,
+          },
         },
-        id: 2
-      }
+        id: 2,
+      },
     },
     {
       name: "Write file",
@@ -64,11 +60,11 @@ async function runTest() {
           name: "write_file",
           arguments: {
             path: `${TEST_DIR}/test.txt`,
-            content: "Hello, MCP!"
-          }
+            content: "Hello, MCP!",
+          },
         },
-        id: 3
-      }
+        id: 3,
+      },
     },
     {
       name: "Read file",
@@ -78,11 +74,11 @@ async function runTest() {
         params: {
           name: "read_file",
           arguments: {
-            path: `${TEST_DIR}/test.txt`
-          }
+            path: `${TEST_DIR}/test.txt`,
+          },
         },
-        id: 4
-      }
+        id: 4,
+      },
     },
     {
       name: "Edit file with regex",
@@ -93,16 +89,18 @@ async function runTest() {
           name: "edit_file",
           arguments: {
             path: `${TEST_DIR}/test.txt`,
-            edits: [{
-              type: "regex",
-              pattern: "MCP",
-              replacement: "Model Context Protocol"
-            }],
-            dryRun: true
-          }
+            edits: [
+              {
+                type: "regex",
+                pattern: "MCP",
+                replacement: "Model Context Protocol",
+              },
+            ],
+            dryRun: true,
+          },
         },
-        id: 5
-      }
+        id: 5,
+      },
     },
     {
       name: "Batch operations",
@@ -117,47 +115,50 @@ async function runTest() {
                 type: "write",
                 params: {
                   path: `${TEST_DIR}/batch1.txt`,
-                  content: "File 1"
-                }
+                  content: "File 1",
+                },
               },
               {
                 type: "write",
                 params: {
                   path: `${TEST_DIR}/batch2.txt`,
-                  content: "File 2"
-                }
+                  content: "File 2",
+                },
               },
               {
                 type: "read",
                 params: {
-                  path: `${TEST_DIR}/batch1.txt`
-                }
-              }
+                  path: `${TEST_DIR}/batch1.txt`,
+                },
+              },
             ],
-            parallel: true
-          }
+            parallel: true,
+          },
         },
-        id: 6
-      }
-    }
+        id: 6,
+      },
+    },
   ];
 
   // 各テストを実行
   for (const test of tests) {
     console.log(`📝 Testing: ${test.name}`);
-    
+
     // リクエストを送信
     server.stdin.write(JSON.stringify(test.request) + "\n");
-    
+
     // レスポンスを待機
     const response = await new Promise((resolve) => {
       const handler = (data: Buffer) => {
-        const lines = data.toString().split('\n').filter(line => line.trim());
+        const lines = data
+          .toString()
+          .split("\n")
+          .filter((line) => line.trim());
         for (const line of lines) {
           try {
             const parsed = JSON.parse(line);
             if (parsed.id === test.request.id) {
-              server.stdout.off('data', handler);
+              server.stdout.off("data", handler);
               resolve(parsed);
             }
           } catch (e) {
@@ -165,9 +166,9 @@ async function runTest() {
           }
         }
       };
-      server.stdout.on('data', handler);
+      server.stdout.on("data", handler);
     });
-    
+
     console.log("Response:", JSON.stringify(response, null, 2));
     console.log("✅ Test passed\n");
   }
@@ -178,8 +179,8 @@ async function runTest() {
 }
 
 // エラーハンドリング
-process.on('unhandledRejection', (error) => {
-  console.error('❌ Test failed:', error);
+process.on("unhandledRejection", (error) => {
+  console.error("❌ Test failed:", error);
   process.exit(1);
 });
 

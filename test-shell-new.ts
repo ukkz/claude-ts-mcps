@@ -31,7 +31,7 @@ const testCases = [
   },
   // ダブルクォートを含むコマンド
   {
-    name: "ダブルクォート付き: echo \"test message\"",
+    name: 'ダブルクォート付き: echo "test message"',
     params: {
       command: 'echo "test message"',
     },

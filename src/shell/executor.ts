@@ -171,7 +171,8 @@ export class ShellExecutor {
       // ストリーミングモードの設定
       const isStreamingMode = streaming === true;
       const effectiveStreamingTimeout = streamingTimeout || DEFAULT_STREAMING_TIMEOUT;
-      const effectiveStreamingBufferSizeKB = streamingBufferSizeKB || DEFAULT_STREAMING_BUFFER_SIZE_KB;
+      const effectiveStreamingBufferSizeKB =
+        streamingBufferSizeKB || DEFAULT_STREAMING_BUFFER_SIZE_KB;
       const streamingBufferSizeBytes = effectiveStreamingBufferSizeKB * 1024;
       const effectiveKillOnTimeout = killOnStreamingTimeout !== false; // デフォルトはtrue
 
@@ -226,7 +227,7 @@ export class ShellExecutor {
         if (willKillProcess) {
           // まずSIGTERMを送信
           childProcess.kill("SIGTERM");
-          
+
           // 1秒後に強制終了
           setTimeout(() => {
             if (!childProcess.killed && !processExited) {
@@ -261,7 +262,7 @@ export class ShellExecutor {
       // プロセス完了を処理
       childProcess.on("close", (exitCode) => {
         processExited = true;
-        
+
         if (timeoutId) {
           clearTimeout(timeoutId);
         }
@@ -283,7 +284,7 @@ export class ShellExecutor {
       // プロセスエラーを処理
       childProcess.on("error", (error) => {
         processExited = true;
-        
+
         if (timeoutId) {
           clearTimeout(timeoutId);
         }

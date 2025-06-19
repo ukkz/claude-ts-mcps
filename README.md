@@ -108,7 +108,7 @@ Create a configuration file for Claude Desktop with all the MCP servers:
 ### File System Operations (`filesystem`)
 
 - **Security**: Restricted to specified directories with symlink protection
-- **Core Operations**: 
+- **Core Operations**:
   - Read/write files with encoding support (utf-8, base64, hex)
   - Partial file reading by byte range or line range
   - Move, copy, delete, append files
@@ -131,7 +131,8 @@ Create a configuration file for Claude Desktop with all the MCP servers:
 - **File Monitoring**:
   - Check for file changes since specific time
   - Support for change, rename, and delete events
-- **Use Cases**: Code editing, project management, file analysis, bulk operations
+- **Use Cases**: Code editing, project management, file analysis, bulk
+  operations
 
 ### Git Integration (`git`)
 
@@ -214,15 +215,20 @@ Our most comprehensive tool with 30+ functions organized into categories:
 - **Controlled Execution**: Allowlist-based command restrictions
 - **Development Tools**: npm, yarn, bun, git, node, python, tsc
 - **Security**: Prevents dangerous operations, directory restrictions
-- **Features**: Auto-parsing of command strings, output size limits, timeout control
-- **Streaming Mode**: Now enabled by default! Captures output from long-running processes
-  - Automatically returns partial output after timeout (default: 10s) or buffer limit (100KB)
+- **Features**: Auto-parsing of command strings, output size limits, timeout
+  control
+- **Streaming Mode**: Now enabled by default! Captures output from long-running
+  processes
+  - Automatically returns partial output after timeout (default: 10s) or buffer
+    limit (100KB)
   - Normal commands complete as usual; only affects long-running processes
-  - Processes are automatically terminated after streaming timeout (safe default)
+  - Processes are automatically terminated after streaming timeout (safe
+    default)
   - Keep processes running with `killOnStreamingTimeout: false`
   - Perfect for: development servers, build watchers, interactive commands
   - Disable with `streaming: false` if needed
-- **Use Cases**: Package management, build processes, script execution, server monitoring
+- **Use Cases**: Package management, build processes, script execution, server
+  monitoring
 
 ### URL Content Fetching (`fetch`)
 

@@ -36,7 +36,9 @@ export const ShellExecuteSchema = z.object({
     .boolean()
     .optional()
     .default(true)
-    .describe("Streaming mode (default: true). Returns partial output for long-running commands while allowing normal commands to complete as usual"),
+    .describe(
+      "Streaming mode (default: true). Returns partial output for long-running commands while allowing normal commands to complete as usual",
+    ),
   streamingTimeout: z
     .number()
     .optional()
@@ -99,10 +101,10 @@ export function createExecuteHandler(executor: ShellExecutor, baseDirectory: str
       // ストリーミング結果の場合は、追加情報を含める
       let responseText = result.stdout;
       if (result.streamingResult) {
-        const processStatus = result.processRunning 
-          ? "Process is still running in the background" 
+        const processStatus = result.processRunning
+          ? "Process is still running in the background"
           : "Process has been terminated";
-        
+
         responseText = [
           `[STREAMING MODE - ${processStatus}]`,
           `Partial output returned after ${args.streamingTimeout || DEFAULT_STREAMING_TIMEOUT}ms or ${args.streamingBufferSizeKB || DEFAULT_STREAMING_BUFFER_SIZE_KB}KB buffer`,
@@ -115,7 +117,9 @@ export function createExecuteHandler(executor: ShellExecutor, baseDirectory: str
           "",
           `Note: ${processStatus}.`,
           result.processRunning ? "To keep process running, use killOnStreamingTimeout: false" : "",
-        ].filter(line => line !== "").join("\n");
+        ]
+          .filter((line) => line !== "")
+          .join("\n");
       }
 
       return {

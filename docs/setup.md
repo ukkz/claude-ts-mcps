@@ -58,6 +58,7 @@ Claude Desktop の設定ファイル（`claude_desktop_config.json`）に以下�
 ## トラブルシューティング
 
 ### エラー: Cannot find module
+
 ```bash
 # node_modules を再インストール
 rm -rf node_modules
@@ -65,9 +66,11 @@ bun install
 ```
 
 ### エラー: Permission denied
+
 指定したディレクトリへのアクセス権限があることを確認してください。
 
 ### ツールが表示されない
+
 1. Claude Desktop を完全に終了（Cmd+Q / Ctrl+Q）
 2. 設定ファイルのパスが正しいことを確認
 3. Claude Desktop を再起動

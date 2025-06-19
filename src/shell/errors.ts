@@ -68,7 +68,7 @@ export function formatCommandError(
   maxOutputSizeMB: number | undefined,
 ): string {
   let errorMessage = "";
-  
+
   // ストリーミング結果の場合
   if (result.streamingResult) {
     errorMessage = `[STREAMING MODE - Process still running]\n`;
@@ -77,7 +77,7 @@ export function formatCommandError(
   } else {
     errorMessage = `Command failed: ${command} ${args.join(" ")}\n`;
   }
-  
+
   errorMessage += `Exit code: ${result.exitCode}\n`;
   errorMessage += `Directory: ${cwd || baseDirectory}\n`;
 

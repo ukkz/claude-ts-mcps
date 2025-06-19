@@ -4,7 +4,9 @@ Version: 0.5.0
 
 ## Overview
 
-The Filesystem MCP Server provides comprehensive file system operations with security restrictions. All operations are limited to specified allowed directories to prevent unauthorized access.
+The Filesystem MCP Server provides comprehensive file system operations with
+security restrictions. All operations are limited to specified allowed
+directories to prevent unauthorized access.
 
 ## Configuration
 
@@ -22,7 +24,8 @@ The Filesystem MCP Server provides comprehensive file system operations with sec
 }
 ```
 
-Multiple directories can be specified as arguments. The server will only allow operations within these directories.
+Multiple directories can be specified as arguments. The server will only allow
+operations within these directories.
 
 ## Available Tools
 
@@ -31,6 +34,7 @@ Multiple directories can be specified as arguments. The server will only allow o
 Read file contents with support for partial reading and different encodings.
 
 **Parameters:**
+
 - `path` (string, required): File path to read
 - `encoding` (enum, optional): "utf-8" | "base64" | "hex" (default: "utf-8")
 - `range` (object, optional): Partial read options
@@ -41,6 +45,7 @@ Read file contents with support for partial reading and different encodings.
     - `to` (number, required): Ending line number (inclusive)
 
 **Examples:**
+
 ```javascript
 // Read entire file
 { "path": "example.txt" }
@@ -60,9 +65,11 @@ Read file contents with support for partial reading and different encodings.
 Read multiple files simultaneously. More efficient than reading one by one.
 
 **Parameters:**
+
 - `paths` (array[string], required): Array of file paths to read
 
 **Example:**
+
 ```javascript
 { "paths": ["file1.txt", "file2.txt", "file3.txt"] }
 ```
@@ -72,10 +79,12 @@ Read multiple files simultaneously. More efficient than reading one by one.
 Create or overwrite a file. Caution: overwrites without warning.
 
 **Parameters:**
+
 - `path` (string, required): File path to write
 - `content` (string, required): Content to write
 
 **Example:**
+
 ```javascript
 { "path": "output.txt", "content": "Hello, World!" }
 ```
@@ -85,13 +94,16 @@ Create or overwrite a file. Caution: overwrites without warning.
 Make edits to text files with support for multiple edit types.
 
 **Parameters:**
+
 - `path` (string, required): File path to edit
 - `edits` (array[EditOperation], required): Array of edit operations
-- `dryRun` (boolean, optional): Preview changes without applying (default: false)
+- `dryRun` (boolean, optional): Preview changes without applying (default:
+  false)
 
 **Edit Operation Types:**
 
 1. **Text Replacement**
+
 ```javascript
 {
   "type": "replace",  // optional, defaults to "replace"
@@ -101,6 +113,7 @@ Make edits to text files with support for multiple edit types.
 ```
 
 2. **Line-based Operations**
+
 ```javascript
 // Replace a line
 {
@@ -127,6 +140,7 @@ Make edits to text files with support for multiple edit types.
 ```
 
 3. **Regular Expression Replacement**
+
 ```javascript
 {
   "type": "regex",
@@ -137,6 +151,7 @@ Make edits to text files with support for multiple edit types.
 ```
 
 **Complete Example:**
+
 ```javascript
 {
   "path": "config.js",
@@ -162,9 +177,11 @@ Make edits to text files with support for multiple edit types.
 Create directory or ensure it exists. Creates nested directories.
 
 **Parameters:**
+
 - `path` (string, required): Directory path to create
 
 **Example:**
+
 ```javascript
 { "path": "src/components/auth" }
 ```
@@ -174,6 +191,7 @@ Create directory or ensure it exists. Creates nested directories.
 List files and directories in a path.
 
 **Parameters:**
+
 - `path` (string, required): Directory path to list
 
 **Returns:** List with [FILE] and [DIR] prefixes
@@ -183,6 +201,7 @@ List files and directories in a path.
 Get recursive tree view as JSON.
 
 **Parameters:**
+
 - `path` (string, required): Root directory path
 
 **Returns:** JSON structure with name, type, and children for directories
@@ -192,10 +211,12 @@ Get recursive tree view as JSON.
 Move or rename files and directories.
 
 **Parameters:**
+
 - `source` (string, required): Source path
 - `destination` (string, required): Destination path
 
 **Example:**
+
 ```javascript
 { "source": "old-name.txt", "destination": "new-name.txt" }
 ```
@@ -205,11 +226,13 @@ Move or rename files and directories.
 Recursively search files matching a pattern.
 
 **Parameters:**
+
 - `path` (string, required): Root directory to search
 - `pattern` (string, required): Search pattern (case-insensitive)
 - `excludePatterns` (array[string], optional): Patterns to exclude
 
 **Example:**
+
 ```javascript
 {
   "path": "src",
@@ -223,6 +246,7 @@ Recursively search files matching a pattern.
 Get file/directory metadata.
 
 **Parameters:**
+
 - `path` (string, required): File or directory path
 
 **Returns:** Size, timestamps, permissions, and type information
@@ -238,9 +262,11 @@ List directories this server can access.
 Delete a file. This operation cannot be undone.
 
 **Parameters:**
+
 - `path` (string, required): File path to delete
 
 **Example:**
+
 ```javascript
 { "path": "temporary.txt" }
 ```
@@ -250,11 +276,14 @@ Delete a file. This operation cannot be undone.
 Copy a file to a new location.
 
 **Parameters:**
+
 - `source` (string, required): Source file path
 - `destination` (string, required): Destination file path
-- `overwrite` (boolean, optional): Allow overwriting existing file (default: false)
+- `overwrite` (boolean, optional): Allow overwriting existing file (default:
+  false)
 
 **Example:**
+
 ```javascript
 {
   "source": "template.html",
@@ -268,11 +297,14 @@ Copy a file to a new location.
 Append content to the end of a file.
 
 **Parameters:**
+
 - `path` (string, required): File path to append to
 - `content` (string, required): Content to append
-- `ensureNewline` (boolean, optional): Ensure content ends with newline (default: true)
+- `ensureNewline` (boolean, optional): Ensure content ends with newline
+  (default: true)
 
 **Example:**
+
 ```javascript
 {
   "path": "log.txt",
@@ -286,6 +318,7 @@ Append content to the end of a file.
 Search for content within files.
 
 **Parameters:**
+
 - `path` (string, required): Root directory to search
 - `pattern` (string, required): Search pattern
 - `filePattern` (string, optional): Filter by filename pattern
@@ -294,6 +327,7 @@ Search for content within files.
 - `maxResults` (number, optional): Maximum results to return (default: 100)
 
 **Example:**
+
 ```javascript
 {
   "path": "src",
@@ -309,11 +343,14 @@ Search for content within files.
 Execute multiple file operations efficiently.
 
 **Parameters:**
+
 - `operations` (array[BatchOperation], required): Operations to execute
-- `parallel` (boolean, optional): Execute read operations in parallel (default: false)
+- `parallel` (boolean, optional): Execute read operations in parallel (default:
+  false)
 - `transactional` (boolean, optional): Rollback all on error (default: false)
 
 **Batch Operation Structure:**
+
 ```javascript
 {
   "type": "read" | "write" | "copy" | "move" | "delete" | "append",
@@ -323,6 +360,7 @@ Execute multiple file operations efficiently.
 ```
 
 **Example:**
+
 ```javascript
 {
   "operations": [
@@ -332,7 +370,7 @@ Execute multiple file operations efficiently.
     },
     {
       "type": "write",
-      "params": { 
+      "params": {
         "path": "backup/config.json",
         "content": "/* result from previous read */"
       }
@@ -349,15 +387,19 @@ Execute multiple file operations efficiently.
 
 ### watch_file
 
-Check for file changes since a specific time. Due to MCP constraints, this is a one-time check, not continuous monitoring.
+Check for file changes since a specific time. Due to MCP constraints, this is a
+one-time check, not continuous monitoring.
 
 **Parameters:**
+
 - `path` (string, required): File or directory path to check
-- `events` (array[enum], optional): Events to detect: "change" | "rename" | "delete" (default: ["change"])
+- `events` (array[enum], optional): Events to detect: "change" | "rename" |
+  "delete" (default: ["change"])
 - `recursive` (boolean, optional): Check subdirectories (default: false)
 - `since` (number, optional): Timestamp in milliseconds (default: 1 second ago)
 
 **Example:**
+
 ```javascript
 {
   "path": "src",
@@ -372,11 +414,13 @@ Check for file changes since a specific time. Due to MCP constraints, this is a 
 Compress files into an archive.
 
 **Parameters:**
+
 - `files` (array[string], required): Files to compress
 - `output` (string, required): Output archive path
 - `format` (enum, optional): "zip" | "tar" | "tar.gz" (default: "zip")
 
 **Example:**
+
 ```javascript
 {
   "files": ["src/app.js", "src/styles.css", "package.json"],
@@ -392,11 +436,13 @@ Compress files into an archive.
 Extract files from an archive.
 
 **Parameters:**
+
 - `archive` (string, required): Archive file path
 - `destination` (string, required): Extraction destination directory
 - `overwrite` (boolean, optional): Overwrite existing files (default: false)
 
 **Example:**
+
 ```javascript
 {
   "archive": "backup.tar.gz",
@@ -433,6 +479,7 @@ All tools return errors in a consistent format:
 ```
 
 Common error types:
+
 - Access denied (path outside allowed directories)
 - File not found
 - Permission denied
@@ -442,9 +489,11 @@ Common error types:
 ## Security Notes
 
 1. **Path Validation**: All paths are validated against allowed directories
-2. **Symlink Protection**: Symlinks are resolved to ensure they don't escape allowed directories
+2. **Symlink Protection**: Symlinks are resolved to ensure they don't escape
+   allowed directories
 3. **No Network Access**: This server has no network capabilities
-4. **Careful with Batch Operations**: Transactional mode recommended for critical operations
+4. **Careful with Batch Operations**: Transactional mode recommended for
+   critical operations
 
 ## Version History
 
