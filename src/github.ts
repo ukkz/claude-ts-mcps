@@ -14,6 +14,7 @@
  * - プルリクエスト操作
  * - ブランチ作成
  * - コード検索
+ * - リリース管理
  */
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
@@ -33,6 +34,7 @@ import * as branches from "./github/operations/branches";
 import * as issues from "./github/operations/issues";
 import * as pulls from "./github/operations/pulls";
 import * as search from "./github/operations/search";
+import * as releases from "./github/operations/releases";
 
 // Import tool definitions
 import { GITHUB_TOOLS } from "./github/tools/definitions";
@@ -319,6 +321,83 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         ) as interfaces.SearchUsersArguments;
         const results = await search.searchUsers(args);
         return createJsonResponse(results);
+      }
+
+      case "create_release": {
+        const args = releases.CreateReleaseSchema.parse(
+          request.params.arguments,
+        ) as interfaces.CreateReleaseArguments;
+        const { owner, repo, tag_name, account_profile, ...options } = args;
+        const release = await releases.createRelease(
+          owner,
+          repo,
+          tag_name,
+          options,
+          account_profile,
+        );
+        return createJsonResponse(release);
+      }
+
+      case "get_release": {
+        const args = releases.GetReleaseSchema.parse(
+          request.params.arguments,
+        ) as interfaces.GetReleaseArguments;
+        const release = await releases.getRelease(
+          args.owner,
+          args.repo,
+          args.release_id,
+          args.account_profile,
+        );
+        return createJsonResponse(release);
+      }
+
+      case "get_latest_release": {
+        const args = releases.GetLatestReleaseSchema.parse(
+          request.params.arguments,
+        ) as interfaces.GetLatestReleaseArguments;
+        const release = await releases.getLatestRelease(
+          args.owner,
+          args.repo,
+          args.account_profile,
+        );
+        return createJsonResponse(release);
+      }
+
+      case "list_releases": {
+        const args = releases.ListReleasesSchema.parse(
+          request.params.arguments,
+        ) as interfaces.ListReleasesArguments;
+        const { owner, repo, account_profile, ...options } = args;
+        const releasesList = await releases.listReleases(owner, repo, options, account_profile);
+        return createJsonResponse(releasesList);
+      }
+
+      case "update_release": {
+        const args = releases.UpdateReleaseSchema.parse(
+          request.params.arguments,
+        ) as interfaces.UpdateReleaseArguments;
+        const { owner, repo, release_id, account_profile, ...options } = args;
+        const release = await releases.updateRelease(
+          owner,
+          repo,
+          release_id,
+          options,
+          account_profile,
+        );
+        return createJsonResponse(release);
+      }
+
+      case "delete_release": {
+        const args = releases.DeleteReleaseSchema.parse(
+          request.params.arguments,
+        ) as interfaces.DeleteReleaseArguments;
+        const result = await releases.deleteRelease(
+          args.owner,
+          args.repo,
+          args.release_id,
+          args.account_profile,
+        );
+        return createJsonResponse(result);
       }
 
       default:

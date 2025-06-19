@@ -9,6 +9,7 @@ import * as branches from "../operations/branches";
 import * as issues from "../operations/issues";
 import * as pulls from "../operations/pulls";
 import * as search from "../operations/search";
+import * as releases from "../operations/releases";
 
 /**
  * GitHub MCP サーバーで提供するツール定義
@@ -103,5 +104,35 @@ export const GITHUB_TOOLS = [
     name: "search_users",
     description: "Search for users on GitHub",
     inputSchema: zodToJsonSchema(search.SearchUsersSchema),
+  },
+  {
+    name: "create_release",
+    description: "Create a new release for a repository",
+    inputSchema: zodToJsonSchema(releases.CreateReleaseSchema),
+  },
+  {
+    name: "get_release",
+    description: "Get a specific release by ID",
+    inputSchema: zodToJsonSchema(releases.GetReleaseSchema),
+  },
+  {
+    name: "get_latest_release",
+    description: "Get the latest release for a repository",
+    inputSchema: zodToJsonSchema(releases.GetLatestReleaseSchema),
+  },
+  {
+    name: "list_releases",
+    description: "List releases for a repository",
+    inputSchema: zodToJsonSchema(releases.ListReleasesSchema),
+  },
+  {
+    name: "update_release",
+    description: "Update an existing release",
+    inputSchema: zodToJsonSchema(releases.UpdateReleaseSchema),
+  },
+  {
+    name: "delete_release",
+    description: "Delete a release",
+    inputSchema: zodToJsonSchema(releases.DeleteReleaseSchema),
   },
 ];

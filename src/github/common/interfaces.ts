@@ -169,3 +169,52 @@ export interface SearchUsersArguments extends GitHubBaseArguments {
   sort?: "followers" | "repositories" | "joined";
   order?: "asc" | "desc";
 }
+
+// リリース操作関連の型定義
+export interface CreateReleaseArguments extends GitHubBaseArguments {
+  owner: string;
+  repo: string;
+  tag_name: string;
+  target_commitish?: string;
+  name?: string;
+  body?: string;
+  draft?: boolean;
+  prerelease?: boolean;
+  generate_release_notes?: boolean;
+}
+
+export interface GetReleaseArguments extends GitHubBaseArguments {
+  owner: string;
+  repo: string;
+  release_id: number;
+}
+
+export interface GetLatestReleaseArguments extends GitHubBaseArguments {
+  owner: string;
+  repo: string;
+}
+
+export interface ListReleasesArguments extends GitHubBaseArguments {
+  owner: string;
+  repo: string;
+  per_page?: number;
+  page?: number;
+}
+
+export interface UpdateReleaseArguments extends GitHubBaseArguments {
+  owner: string;
+  repo: string;
+  release_id: number;
+  tag_name?: string;
+  target_commitish?: string;
+  name?: string;
+  body?: string;
+  draft?: boolean;
+  prerelease?: boolean;
+}
+
+export interface DeleteReleaseArguments extends GitHubBaseArguments {
+  owner: string;
+  repo: string;
+  release_id: number;
+}

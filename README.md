@@ -144,6 +144,7 @@ Create a configuration file for Claude Desktop with all the MCP servers:
 
 - **Repository Management**: Create, search, manage repositories
 - **Issues & PRs**: Create, update, merge pull requests and issues
+- **Release Management**: Create, update, and manage releases
 - **Multi-Account Support**: Switch between work/personal accounts
 - **File Operations**: Direct file creation and updates via API
 
