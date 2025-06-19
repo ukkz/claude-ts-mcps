@@ -15,12 +15,14 @@ export const CreateIssueSchema = z.object({
   assignees: z.array(z.string()).optional().describe("List of assignee usernames"),
   labels: z.array(z.string()).optional().describe("List of labels"),
   milestone: z.number().optional().describe("Milestone number"),
+  account_profile: z.string().optional().describe("GitHub account profile to use"),
 });
 
 export const GetIssueSchema = z.object({
   owner: z.string().describe("Repository owner"),
   repo: z.string().describe("Repository name"),
   issue_number: z.number().describe("Issue number"),
+  account_profile: z.string().optional().describe("GitHub account profile to use"),
 });
 
 export const ListIssuesOptionsSchema = z.object({
@@ -44,6 +46,7 @@ export const UpdateIssueOptionsSchema = z.object({
   assignees: z.array(z.string()).optional().describe("List of assignee usernames"),
   labels: z.array(z.string()).optional().describe("List of labels"),
   milestone: z.number().nullable().optional().describe("Milestone number"),
+  account_profile: z.string().optional().describe("GitHub account profile to use"),
 });
 
 export const IssueCommentSchema = z.object({
@@ -51,6 +54,7 @@ export const IssueCommentSchema = z.object({
   repo: z.string().describe("Repository name"),
   issue_number: z.number().describe("Issue number"),
   body: z.string().describe("Comment body"),
+  account_profile: z.string().optional().describe("GitHub account profile to use"),
 });
 
 /**
@@ -60,12 +64,17 @@ export async function createIssue(
   owner: string,
   repo: string,
   options: Omit<z.infer<typeof CreateIssueSchema>, "owner" | "repo">,
+  accountProfile?: string,
 ) {
   const url = `https://api.github.com/repos/${owner}/${repo}/issues`;
-  const response = await githubRequest(url, {
-    method: "POST",
-    body: options,
-  });
+  const response = await githubRequest(
+    url,
+    {
+      method: "POST",
+      body: options,
+    },
+    accountProfile,
+  );
 
   return GitHubIssueSchema.parse(response);
 }
@@ -73,9 +82,14 @@ export async function createIssue(
 /**
  * GitHubリポジトリの特定のIssueの詳細を取得
  */
-export async function getIssue(owner: string, repo: string, issue_number: number) {
+export async function getIssue(
+  owner: string,
+  repo: string,
+  issue_number: number,
+  accountProfile?: string,
+) {
   const url = `https://api.github.com/repos/${owner}/${repo}/issues/${issue_number}`;
-  const response = await githubRequest(url);
+  const response = await githubRequest(url, {}, accountProfile);
 
   return GitHubIssueSchema.parse(response);
 }
@@ -106,7 +120,7 @@ export async function listIssues(
 
   const url = buildUrl(`https://api.github.com/repos/${owner}/${repo}/issues`, params);
 
-  const response = await githubRequest(url);
+  const response = await githubRequest(url, {}, options.account_profile);
   return z.array(GitHubIssueSchema).parse(response);
 }
 
@@ -118,12 +132,17 @@ export async function updateIssue(
   repo: string,
   issue_number: number,
   options: Omit<z.infer<typeof UpdateIssueOptionsSchema>, "owner" | "repo" | "issue_number">,
+  accountProfile?: string,
 ) {
   const url = `https://api.github.com/repos/${owner}/${repo}/issues/${issue_number}`;
-  const response = await githubRequest(url, {
-    method: "PATCH",
-    body: options,
-  });
+  const response = await githubRequest(
+    url,
+    {
+      method: "PATCH",
+      body: options,
+    },
+    accountProfile,
+  );
 
   return GitHubIssueSchema.parse(response);
 }
@@ -136,12 +155,17 @@ export async function addIssueComment(
   repo: string,
   issue_number: number,
   body: string,
+  accountProfile?: string,
 ) {
   const url = `https://api.github.com/repos/${owner}/${repo}/issues/${issue_number}/comments`;
-  const response = await githubRequest(url, {
-    method: "POST",
-    body: { body },
-  });
+  const response = await githubRequest(
+    url,
+    {
+      method: "POST",
+      body: { body },
+    },
+    accountProfile,
+  );
 
   return response;
 }

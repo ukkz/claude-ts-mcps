@@ -15,12 +15,14 @@ export const CreatePullRequestSchema = z.object({
   head: z.string().describe("Branch containing changes"),
   base: z.string().describe("Branch to merge changes into"),
   draft: z.boolean().optional().describe("Create as draft pull request"),
+  account_profile: z.string().optional().describe("GitHub account profile to use"),
 });
 
 export const GetPullRequestSchema = z.object({
   owner: z.string().describe("Repository owner"),
   repo: z.string().describe("Repository name"),
   pull_number: z.number().describe("Pull request number"),
+  account_profile: z.string().optional().describe("GitHub account profile to use"),
 });
 
 export const ListPullRequestsSchema = z.object({
@@ -45,19 +47,27 @@ export const MergePullRequestSchema = z.object({
     .optional()
     .default("merge")
     .describe("Merge method"),
+  account_profile: z.string().optional().describe("GitHub account profile to use"),
 });
 
 /**
  * GitHubリポジトリに新しいプルリクエストを作成
  */
-export async function createPullRequest(options: z.infer<typeof CreatePullRequestSchema>) {
+export async function createPullRequest(
+  options: z.infer<typeof CreatePullRequestSchema>,
+  accountProfile?: string,
+) {
   const { owner, repo, ...pullRequestOptions } = options;
   const url = `https://api.github.com/repos/${owner}/${repo}/pulls`;
 
-  const response = await githubRequest(url, {
-    method: "POST",
-    body: pullRequestOptions,
-  });
+  const response = await githubRequest(
+    url,
+    {
+      method: "POST",
+      body: pullRequestOptions,
+    },
+    accountProfile,
+  );
 
   return GitHubPullRequestSchema.parse(response);
 }
@@ -65,9 +75,14 @@ export async function createPullRequest(options: z.infer<typeof CreatePullReques
 /**
  * 特定のプルリクエストの詳細を取得
  */
-export async function getPullRequest(owner: string, repo: string, pull_number: number) {
+export async function getPullRequest(
+  owner: string,
+  repo: string,
+  pull_number: number,
+  accountProfile?: string,
+) {
   const url = `https://api.github.com/repos/${owner}/${repo}/pulls/${pull_number}`;
-  const response = await githubRequest(url);
+  const response = await githubRequest(url, {}, accountProfile);
 
   return GitHubPullRequestSchema.parse(response);
 }
@@ -98,7 +113,7 @@ export async function listPullRequests(
 
   const url = buildUrl(`https://api.github.com/repos/${owner}/${repo}/pulls`, params);
 
-  const response = await githubRequest(url);
+  const response = await githubRequest(url, {}, options.account_profile);
   return z.array(GitHubPullRequestSchema).parse(response);
 }
 
@@ -110,6 +125,7 @@ export async function mergePullRequest(
   repo: string,
   pull_number: number,
   options: Omit<z.infer<typeof MergePullRequestSchema>, "owner" | "repo" | "pull_number">,
+  accountProfile?: string,
 ) {
   // デフォルト値を設定して未定義のパラメータに対応
   const params = {
@@ -119,10 +135,14 @@ export async function mergePullRequest(
   };
 
   const url = `https://api.github.com/repos/${owner}/${repo}/pulls/${pull_number}/merge`;
-  const response = await githubRequest(url, {
-    method: "PUT",
-    body: params,
-  });
+  const response = await githubRequest(
+    url,
+    {
+      method: "PUT",
+      body: params,
+    },
+    accountProfile,
+  );
 
   return response;
 }

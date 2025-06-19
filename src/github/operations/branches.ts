@@ -34,7 +34,7 @@ export async function createBranchFromRef(
 
   // Get the base branch's SHA
   const refResponse = await githubRequest(
-    `https://api.github.com/repos/${owner}/${repo}/git/refs/heads/${baseBranch}`,
+    `https://api.github.com/repos/${owner}/${repo}/git/refs/heads/${encodeURIComponent(baseBranch)}`,
     {},
     accountProfile,
   );

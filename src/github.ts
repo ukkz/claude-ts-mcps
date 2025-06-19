@@ -131,7 +131,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const args = repository.SearchRepositoriesSchema.parse(
           request.params.arguments,
         ) as interfaces.SearchRepositoriesArguments;
-        const results = await repository.searchRepositories(args.query, args.page, args.perPage);
+        const results = await repository.searchRepositories(
+          args.query,
+          args.page,
+          args.perPage,
+          args.account_profile,
+        );
         return createJsonResponse(results);
       }
 
@@ -193,8 +198,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const args = issues.CreateIssueSchema.parse(
           request.params.arguments,
         ) as interfaces.CreateIssueArguments;
-        const { owner, repo, ...options } = args;
-        const issue = await issues.createIssue(owner, repo, options);
+        const { owner, repo, account_profile, ...options } = args;
+        const issue = await issues.createIssue(owner, repo, options, account_profile);
         return createJsonResponse(issue);
       }
 
@@ -202,7 +207,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const args = issues.GetIssueSchema.parse(
           request.params.arguments,
         ) as interfaces.GetIssueArguments;
-        const issue = await issues.getIssue(args.owner, args.repo, args.issue_number);
+        const issue = await issues.getIssue(
+          args.owner,
+          args.repo,
+          args.issue_number,
+          args.account_profile,
+        );
         return createJsonResponse(issue);
       }
 
@@ -220,8 +230,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const args = issues.UpdateIssueOptionsSchema.parse(
           request.params.arguments,
         ) as interfaces.UpdateIssueArguments;
-        const { owner, repo, issue_number, ...options } = args;
-        const issue = await issues.updateIssue(owner, repo, issue_number, options);
+        const { owner, repo, issue_number, account_profile, ...options } = args;
+        const issue = await issues.updateIssue(owner, repo, issue_number, options, account_profile);
         return createJsonResponse(issue);
       }
 
@@ -229,8 +239,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const args = issues.IssueCommentSchema.parse(
           request.params.arguments,
         ) as interfaces.IssueCommentArguments;
-        const { owner, repo, issue_number, body } = args;
-        const result = await issues.addIssueComment(owner, repo, issue_number, body);
+        const { owner, repo, issue_number, body, account_profile } = args;
+        const result = await issues.addIssueComment(
+          owner,
+          repo,
+          issue_number,
+          body,
+          account_profile,
+        );
         return createJsonResponse(result);
       }
 
@@ -238,7 +254,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const args = pulls.CreatePullRequestSchema.parse(
           request.params.arguments,
         ) as interfaces.CreatePullRequestArguments;
-        const pullRequest = await pulls.createPullRequest(args);
+        const pullRequest = await pulls.createPullRequest(args, args.account_profile);
         return createJsonResponse(pullRequest);
       }
 
@@ -246,7 +262,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const args = pulls.GetPullRequestSchema.parse(
           request.params.arguments,
         ) as interfaces.GetPullRequestArguments;
-        const pullRequest = await pulls.getPullRequest(args.owner, args.repo, args.pull_number);
+        const pullRequest = await pulls.getPullRequest(
+          args.owner,
+          args.repo,
+          args.pull_number,
+          args.account_profile,
+        );
         return createJsonResponse(pullRequest);
       }
 
@@ -264,9 +285,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const args = pulls.MergePullRequestSchema.parse(
           request.params.arguments,
         ) as interfaces.MergePullRequestArguments;
-        const { owner, repo, pull_number, ...options } = args;
+        const { owner, repo, pull_number, account_profile, ...options } = args;
         const mergeOptions = applyMergeDefaults(options);
-        const result = await pulls.mergePullRequest(owner, repo, pull_number, mergeOptions);
+        const result = await pulls.mergePullRequest(
+          owner,
+          repo,
+          pull_number,
+          mergeOptions,
+          account_profile,
+        );
         return createJsonResponse(result);
       }
 

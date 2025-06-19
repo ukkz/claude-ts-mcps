@@ -143,11 +143,12 @@ export function validateRepositoryName(name: string): string {
  * GitHub操作用にオーナー名を検証
  */
 export function validateOwnerName(owner: string): string {
-  const sanitized = owner.trim().toLowerCase();
+  const sanitized = owner.trim();
   if (!sanitized) {
     throw new Error("Owner name cannot be empty");
   }
-  if (!/^[a-z0-9](?:[a-z0-9]|-(?=[a-z0-9])){0,38}$/.test(sanitized)) {
+  // 大文字小文字を区別しない正規表現でチェック
+  if (!/^[a-zA-Z0-9](?:[a-zA-Z0-9]|-(?=[a-zA-Z0-9])){0,38}$/i.test(sanitized)) {
     throw new Error(
       "Owner name must start with a letter or number and can contain up to 39 characters",
     );
@@ -162,9 +163,14 @@ export async function checkBranchExists(
   owner: string,
   repo: string,
   branch: string,
+  accountProfile?: string,
 ): Promise<boolean> {
   try {
-    await githubRequest(`https://api.github.com/repos/${owner}/${repo}/branches/${branch}`);
+    await githubRequest(
+      `https://api.github.com/repos/${owner}/${repo}/branches/${encodeURIComponent(branch)}`,
+      {},
+      accountProfile,
+    );
     return true;
   } catch (error) {
     if (error && typeof error === "object" && "status" in error && error.status === 404) {

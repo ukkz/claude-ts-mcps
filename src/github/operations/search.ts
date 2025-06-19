@@ -12,6 +12,7 @@ export const SearchCodeSchema = z.object({
   perPage: z.number().optional().describe("Results per page"),
   sort: z.enum(["indexed", "best-match"]).optional().describe("Sort field"),
   order: z.enum(["asc", "desc"]).optional().describe("Sort order"),
+  account_profile: z.string().optional().describe("GitHub account profile to use"),
 });
 
 export const SearchIssuesSchema = z.object({
@@ -20,6 +21,7 @@ export const SearchIssuesSchema = z.object({
   perPage: z.number().optional().describe("Results per page"),
   sort: z.enum(["created", "updated", "comments"]).optional().describe("Sort field"),
   order: z.enum(["asc", "desc"]).optional().describe("Sort order"),
+  account_profile: z.string().optional().describe("GitHub account profile to use"),
 });
 
 export const SearchUsersSchema = z.object({
@@ -28,6 +30,7 @@ export const SearchUsersSchema = z.object({
   perPage: z.number().optional().describe("Results per page"),
   sort: z.enum(["followers", "repositories", "joined"]).optional().describe("Sort field"),
   order: z.enum(["asc", "desc"]).optional().describe("Sort order"),
+  account_profile: z.string().optional().describe("GitHub account profile to use"),
 });
 
 /**
@@ -45,7 +48,7 @@ export async function searchCode(options: z.infer<typeof SearchCodeSchema>) {
 
   const url = buildUrl(`https://api.github.com/search/code`, params);
 
-  const response = await githubRequest(url);
+  const response = await githubRequest(url, {}, options.account_profile);
   return response;
 }
 
@@ -64,7 +67,7 @@ export async function searchIssues(options: z.infer<typeof SearchIssuesSchema>) 
 
   const url = buildUrl(`https://api.github.com/search/issues`, params);
 
-  const response = await githubRequest(url);
+  const response = await githubRequest(url, {}, options.account_profile);
   return response;
 }
 
@@ -83,6 +86,6 @@ export async function searchUsers(options: z.infer<typeof SearchUsersSchema>) {
 
   const url = buildUrl(`https://api.github.com/search/users`, params);
 
-  const response = await githubRequest(url);
+  const response = await githubRequest(url, {}, options.account_profile);
   return response;
 }

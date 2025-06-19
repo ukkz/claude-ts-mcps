@@ -93,9 +93,9 @@ export async function getFileContents(
   branch?: string,
   accountProfile?: string,
 ) {
-  let url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
+  let url = `https://api.github.com/repos/${owner}/${repo}/contents/${encodeURIComponent(path)}`;
   if (branch) {
-    url += `?ref=${branch}`;
+    url += `?ref=${encodeURIComponent(branch)}`;
   }
 
   const response = await githubRequest(url, {}, accountProfile);
@@ -132,11 +132,11 @@ export async function createOrUpdateFile(
         currentSha = existingFile.sha;
       }
     } catch (error) {
-      console.error("Note: File does not exist in branch, will create new file");
+      console.log("Note: File does not exist in branch, will create new file");
     }
   }
 
-  const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
+  const url = `https://api.github.com/repos/${owner}/${repo}/contents/${encodeURIComponent(path)}`;
   const body = {
     message,
     content: encodedContent,
@@ -255,7 +255,7 @@ export async function pushFiles(
   accountProfile?: string,
 ) {
   const refResponse = await githubRequest(
-    `https://api.github.com/repos/${owner}/${repo}/git/refs/heads/${branch}`,
+    `https://api.github.com/repos/${owner}/${repo}/git/refs/heads/${encodeURIComponent(branch)}`,
     {},
     accountProfile,
   );
@@ -265,5 +265,11 @@ export async function pushFiles(
 
   const tree = await createTree(owner, repo, files, commitSha, accountProfile);
   const commit = await createCommit(owner, repo, message, tree.sha, [commitSha], accountProfile);
-  return await updateReference(owner, repo, `heads/${branch}`, commit.sha, accountProfile);
+  return await updateReference(
+    owner,
+    repo,
+    `heads/${encodeURIComponent(branch)}`,
+    commit.sha,
+    accountProfile,
+  );
 }

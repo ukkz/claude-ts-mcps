@@ -11,6 +11,7 @@ export const SearchRepositoriesSchema = z.object({
   query: z.string().describe("Search query"),
   page: z.number().optional().describe("Page number"),
   perPage: z.number().optional().describe("Results per page"),
+  account_profile: z.string().optional().describe("GitHub account profile to use"),
 });
 
 export const CreateRepositoryOptionsSchema = z.object({
@@ -20,19 +21,25 @@ export const CreateRepositoryOptionsSchema = z.object({
   auto_init: z.boolean().optional().describe("Auto-initialize with README.md"),
   gitignore_template: z.string().optional().describe(".gitignore template"),
   license_template: z.string().optional().describe("License template"),
+  account_profile: z.string().optional().describe("GitHub account profile to use"),
 });
 
 /**
  * GitHubリポジトリを検索
  */
-export async function searchRepositories(query: string, page?: number, perPage?: number) {
+export async function searchRepositories(
+  query: string,
+  page?: number,
+  perPage?: number,
+  accountProfile?: string,
+) {
   const url = buildUrl(`https://api.github.com/search/repositories`, {
     q: query,
     page: page,
     per_page: perPage,
   });
 
-  const response = await githubRequest(url);
+  const response = await githubRequest(url, {}, accountProfile);
   return response;
 }
 
@@ -43,10 +50,17 @@ export async function createRepository(options: z.infer<typeof CreateRepositoryO
   // Validate repository name
   options.name = validateRepositoryName(options.name);
 
-  const response = await githubRequest(`https://api.github.com/user/repos`, {
-    method: "POST",
-    body: options,
-  });
+  // accountProfileを分離してbodyから除外
+  const { account_profile, ...repositoryOptions } = options;
+
+  const response = await githubRequest(
+    `https://api.github.com/user/repos`,
+    {
+      method: "POST",
+      body: repositoryOptions,
+    },
+    account_profile,
+  );
 
   return GitHubRepositorySchema.parse(response);
 }
