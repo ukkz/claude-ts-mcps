@@ -1,3 +1,33 @@
+# Claude TypeScript MCP Servers - Release Notes
+
+## Git MCP Server v1.1.0 - Tag Management Added
+
+### New Features
+
+#### Tag Operations
+
+- **`git_create_tag`**: Create lightweight tags at any commit
+- **`git_create_annotated_tag`**: Create annotated tags with messages
+- **`git_list_tags`**: List all tags with optional pattern filtering
+- **`git_delete_tag`**: Remove unwanted tags
+- **`git_show_tag`**: Display tag details including messages for annotated tags
+
+### Improvements
+
+- Enhanced error handling for tag operations
+- Proper escaping of special characters in tag names and messages
+- Support for targeting specific commits when creating tags
+- Clear error messages when tags already exist or are not found
+
+### Use Cases
+
+- Version release management
+- Marking important commits
+- Creating deployment tags
+- Managing semantic versioning
+
+---
+
 # Filesystem MCP Server - Release Notes
 
 ## Version 0.5.0 - Phase 3 Complete

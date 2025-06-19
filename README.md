@@ -138,7 +138,12 @@ Create a configuration file for Claude Desktop with all the MCP servers:
 
 - **Full Git Workflow**: init, add, commit, branch, checkout, diff, log
 - **Repository Management**: status tracking, history viewing
-- **Use Cases**: Version control, code review, project history
+- **Tag Management**: 
+  - Create lightweight and annotated tags
+  - List tags with pattern filtering
+  - Show tag details and messages
+  - Delete unwanted tags
+- **Use Cases**: Version control, code review, project history, release management
 
 ### GitHub API (`github`)
 
