@@ -65,6 +65,9 @@ export interface PerplexityResponse {
 // 検索コンテキストサイズの型
 export type SearchContextSize = "low" | "medium" | "high";
 
+// 検索の新しさフィルタの型
+export type SearchRecencyFilter = "day" | "week" | "month" | "year";
+
 // 使用可能なモデル名の型
 export type SonarModel =
   | "sonar"

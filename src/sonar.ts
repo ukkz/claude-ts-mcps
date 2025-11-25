@@ -11,6 +11,7 @@ import {
   PerplexityResponse,
   Message,
   SearchContextSize,
+  SearchRecencyFilter,
   SonarModel,
 } from "./sonar/types.js";
 
@@ -57,12 +58,14 @@ async function waitForRateLimit(): Promise<void> {
  * @param query 自然言語による質問
  * @param model 使用するモデル（sonar, sonar-pro, sonar-reasoning, sonar-reasoning-pro, sonar-deep-research）
  * @param searchContextSize 検索コンテキストのサイズ（low: 簡単な事実確認, medium: 標準的な質問, high: 複雑な調査）
+ * @param searchRecencyFilter 検索結果の新しさフィルタ（day, week, month, year）
  * @returns Perplexity APIからのレスポンス
  */
 async function performSonarQuery(
   query: string,
   model: SonarModel = "sonar",
   searchContextSize: SearchContextSize = "medium",
+  searchRecencyFilter?: SearchRecencyFilter,
 ): Promise<PerplexityResponse> {
   // レート制限に対応するための待機
   await waitForRateLimit();
@@ -85,6 +88,7 @@ async function performSonarQuery(
     temperature: 0.1,
     stream: false,
     web_search_options: { search_context_size: searchContextSize },
+    ...(searchRecencyFilter && { search_recency_filter: searchRecencyFilter }),
   };
 
   try {
@@ -163,8 +167,13 @@ function formatResultsAsMarkdown(data: PerplexityResponse): string {
 }
 
 // 英語での説明文（他のWeb検索ツールとの差別化を明確化）
-const TOOL_DESCRIPTION =
-  "AI-powered web search that returns synthesized, comprehensive answers with citations. Unlike keyword-based searches, this tool understands natural language questions and provides coherent responses by analyzing multiple sources. Best for complex questions requiring in-depth understanding and verified information. Returns AI-generated answers with numbered citations linking to sources.";
+const TOOL_DESCRIPTION = `AI-powered web search that returns synthesized, comprehensive answers with citations. Unlike keyword-based searches, this tool understands natural language questions and provides coherent responses by analyzing multiple sources.
+
+IMPORTANT: This is an LLM-based search engine. Ask questions in natural language as complete sentences, NOT as keyword lists.
+Good: "What are the latest developments in quantum computing?"
+Bad: "quantum computing latest developments 2025"
+
+Best for complex questions requiring in-depth understanding and verified information. Returns AI-generated answers with numbered citations linking to sources.`;
 
 // ツールの実装
 server.tool(
@@ -174,7 +183,7 @@ server.tool(
     query: z
       .string()
       .describe(
-        "Natural language question (e.g. 'What are the latest developments in quantum computing?')",
+        "Ask in natural language as a complete sentence (e.g. 'What are the latest developments in quantum computing?'). Do NOT use keyword-style queries.",
       ),
     model: z
       .enum(["sonar", "sonar-pro", "sonar-reasoning", "sonar-reasoning-pro", "sonar-deep-research"])
@@ -187,6 +196,12 @@ server.tool(
       .optional()
       .describe(
         "Search depth - low: simple facts (cost-efficient), medium: moderate complexity (balanced), high: complex research (maximum depth) (default: medium)",
+      ),
+    search_recency_filter: z
+      .enum(["day", "week", "month", "year"])
+      .optional()
+      .describe(
+        "Filter results by recency - day: past 24 hours, week: past 7 days, month: past 30 days, year: past 365 days. Use when you need recent information.",
       ),
   },
   async (args) => {
@@ -206,8 +221,12 @@ server.tool(
         typeof args.search_context_size === "string"
           ? (args.search_context_size as SearchContextSize)
           : "medium";
+      const searchRecencyFilter =
+        typeof args.search_recency_filter === "string"
+          ? (args.search_recency_filter as SearchRecencyFilter)
+          : undefined;
 
-      const data = await performSonarQuery(query, model, searchContextSize);
+      const data = await performSonarQuery(query, model, searchContextSize, searchRecencyFilter);
       const formattedResult = formatResultsAsMarkdown(data);
 
       return {
@@ -231,12 +250,14 @@ server.tool(
 // マルチクエリツールの実装
 server.tool(
   "sonar_multi_search",
-  "Performs multiple related searches simultaneously and returns combined results. Ideal for complex research questions that benefit from being broken down into simpler components. Each query receives its own dedicated response with proper citations, enabling comprehensive information synthesis.",
+  `Performs multiple related searches simultaneously and returns combined results. Ideal for complex research questions that benefit from being broken down into simpler components.
+
+IMPORTANT: Each query should be a natural language question as a complete sentence, NOT keyword lists.`,
   {
     queries: z
       .array(z.string())
       .describe(
-        "List of related natural language questions - each will receive a full AI-synthesized answer",
+        "List of natural language questions (complete sentences, not keywords) - each will receive a full AI-synthesized answer",
       ),
     model: z
       .enum(["sonar", "sonar-pro", "sonar-reasoning", "sonar-reasoning-pro", "sonar-deep-research"])
@@ -249,6 +270,12 @@ server.tool(
       .optional()
       .describe(
         "Search depth for each query - use 'high' for comprehensive multi-query research (default: low for efficiency)",
+      ),
+    search_recency_filter: z
+      .enum(["day", "week", "month", "year"])
+      .optional()
+      .describe(
+        "Filter all results by recency - day: past 24 hours, week: past 7 days, month: past 30 days, year: past 365 days",
       ),
   },
   async (args) => {
@@ -269,11 +296,20 @@ server.tool(
         typeof args.search_context_size === "string"
           ? (args.search_context_size as SearchContextSize)
           : "low";
+      const searchRecencyFilter =
+        typeof args.search_recency_filter === "string"
+          ? (args.search_recency_filter as SearchRecencyFilter)
+          : undefined;
 
       // 各クエリに対して順次検索を実行（レート制限対応のため並列実行しない）
       const results: PerplexityResponse[] = [];
       for (const query of queries) {
-        const result = await performSonarQuery(query, model, searchContextSize);
+        const result = await performSonarQuery(
+          query,
+          model,
+          searchContextSize,
+          searchRecencyFilter,
+        );
         results.push(result);
       }
 
@@ -310,9 +346,15 @@ server.tool(
 // タイムアウト付きの検索実行
 server.tool(
   "sonar_search_with_timeout",
-  "Performs a natural language search with a strict timeout to ensure fast responses. If the search takes too long, it returns partial results or a timeout message. Useful for time-sensitive queries where some information is better than none.",
+  `Performs a natural language search with a strict timeout to ensure fast responses.
+
+IMPORTANT: Ask in natural language as a complete sentence, NOT as keyword lists.`,
   {
-    query: z.string().describe("Natural language question for quick AI-powered answer"),
+    query: z
+      .string()
+      .describe(
+        "Ask in natural language as a complete sentence (e.g. 'What happened in tech news today?'). Do NOT use keyword-style queries.",
+      ),
     timeout_ms: z
       .number()
       .optional()
@@ -322,6 +364,12 @@ server.tool(
       .optional()
       .describe(
         "Model to use - note that complex models may timeout more frequently (default: sonar for speed)",
+      ),
+    search_recency_filter: z
+      .enum(["day", "week", "month", "year"])
+      .optional()
+      .describe(
+        "Filter results by recency - day: past 24 hours, week: past 7 days, month: past 30 days, year: past 365 days",
       ),
   },
   async (args) => {
@@ -338,13 +386,17 @@ server.tool(
       const { query } = args;
       const timeoutMs = typeof args.timeout_ms === "number" ? args.timeout_ms : 20000; // デフォルト20秒に変更
       const model = typeof args.model === "string" ? (args.model as SonarModel) : "sonar";
+      const searchRecencyFilter =
+        typeof args.search_recency_filter === "string"
+          ? (args.search_recency_filter as SearchRecencyFilter)
+          : undefined;
 
       // タイムアウト付きの検索実行
       const timeoutPromise = new Promise<PerplexityResponse>((_, reject) => {
         setTimeout(() => reject(new Error("Search timed out")), timeoutMs);
       });
 
-      const searchPromise = performSonarQuery(query, model, "low");
+      const searchPromise = performSonarQuery(query, model, "low", searchRecencyFilter);
 
       try {
         const data = await Promise.race([searchPromise, timeoutPromise]);
